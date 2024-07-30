@@ -1,9 +1,6 @@
-/*
+// Involves syntax edits to fit .NET core 8.0 standards.
 
-Involves some minor edits to fit .NET core 8.0 standards.
-
-*/
-
+#region
 /*
 
 MIT License
@@ -29,187 +26,143 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+//github: https://github.com/ChevyRay/Coroutines/tree/master
+//FIX github: https://github.com/Linerichka/Coroutines
+#endregion
 
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Coroutines;
-
-/// <summary>
-/// A container for running multiple routines in parallel. Coroutines can be nested.
-/// </summary>
-public class CoroutineRunner
+namespace Coroutines
 {
-    readonly List<IEnumerator> running = [];
-    readonly List<float> delays = [];
-
     /// <summary>
-    /// Run a coroutine.
+    /// A container for running multiple routines in parallel. Coroutines can be nested.
     /// </summary>
-    /// <returns>A handle to the new coroutine.</returns>
-    /// <param name="delay">How many seconds to delay before starting.</param>
-    /// <param name="routine">The routine to run.</param>
-    public CoroutineHandle Run(float delay, IEnumerator routine)
+    public class CoroutineRunner
     {
-        running.Add(routine);
-        delays.Add(delay);
-        return new CoroutineHandle(this, routine);
-    }
+        /// Use it if each coroutine call should be close to the time of its expected call.  
+        /// However, this may cause IEnumerator calls to be made at irregular intervals between each other.
+        public bool UnscaledTime { get; set; } = true;
 
-    /// <summary>
-    /// Run a coroutine.
-    /// </summary>
-    /// <returns>A handle to the new coroutine.</returns>
-    /// <param name="routine">The routine to run.</param>
-    public CoroutineHandle Run(IEnumerator routine)
-    {
-        return Run(0f, routine);
-    }
+        /// <summary>
+        /// How many coroutines are currently running.
+        /// </summary>
+        public int Count => _coroutines.Count;
 
-    /// <summary>
-    /// Stop the specified routine.
-    /// </summary>
-    /// <returns>True if the routine was actually stopped.</returns>
-    /// <param name="routine">The routine to stop.</param>
-    public bool Stop(IEnumerator routine)
-    {
-        int i = running.IndexOf(routine);
-        if (i < 0)
-            return false;
-        running[i] = null;
-        delays[i] = 0f;
-        return true;
-    }
+        private Dictionary<string, CoroutineHandle> _coroutines = [];
 
-    /// <summary>
-    /// Stop the specified routine.
-    /// </summary>
-    /// <returns>True if the routine was actually stopped.</returns>
-    /// <param name="routine">The routine to stop.</param>
-    public bool Stop(CoroutineHandle routine)
-    {
-        return routine.Stop();
-    }
-
-    /// <summary>
-    /// Stop all running routines.
-    /// </summary>
-    public void StopAll()
-    {
-        running.Clear();
-        delays.Clear();
-    }
-
-    /// <summary>
-    /// Check if the routine is currently running.
-    /// </summary>
-    /// <returns>True if the routine is running.</returns>
-    /// <param name="routine">The routine to check.</param>
-    public bool IsRunning(IEnumerator routine)
-    {
-        return running.Contains(routine);
-    }
-
-    /// <summary>
-    /// Check if the routine is currently running.
-    /// </summary>
-    /// <returns>True if the routine is running.</returns>
-    /// <param name="routine">The routine to check.</param>
-    public bool IsRunning(CoroutineHandle routine)
-    {
-        return routine.IsRunning;
-    }
-
-    /// <summary>
-    /// Update all running coroutines.
-    /// </summary>
-    /// <returns>True if any routines were updated.</returns>
-    /// <param name="deltaTime">How many seconds have passed sinced the last update.</param>
-    public bool Update(float deltaTime)
-    {
-        if (running.Count > 0)
+        public CoroutineHandle Run(string methodName, IEnumerator enumerator, float delay = 0f)
         {
-            for (int i = 0; i < running.Count; i++)
+            CoroutineHandle coroutineHandle = new(this, methodName, delay, enumerator);
+            _coroutines.Add(methodName, coroutineHandle);
+            return coroutineHandle;
+        }
+
+        public bool Stop(string methodName)
+        {
+            if (_coroutines.TryGetValue(methodName, out _))
             {
-                if (delays[i] > 0f)
-                    delays[i] -= deltaTime;
-                else if (running[i] == null || !MoveNext(running[i], i))
+                _coroutines.Remove(methodName);
+                return true;
+            }
+            else return false;
+        }
+
+        public CoroutineHandle GetHandle(string methodName) => _coroutines[methodName];
+
+        /// <summary>
+        /// Stop all running routines.
+        /// </summary>
+        public void StopAll() => _coroutines.Clear();
+
+        /// <summary>
+        /// Check if the routine is currently running.
+        /// </summary>
+        /// <returns>True if the routine is running.</returns>
+        public bool IsRunning(string methodName) => _coroutines.TryGetValue(methodName, out _);
+
+        /// <summary>
+        /// Update all running coroutines.
+        /// </summary>
+        /// <param name="deltaTime">How many seconds have passed sinced the last update.</param>
+        public void Update(float deltaTime)
+        {
+            Queue<string> corountineForRemoval = [];
+
+            foreach(var coroutine in _coroutines.Values)
+            {
+                if(coroutine.Delay > 0)
                 {
-                    running.RemoveAt(i);
-                    delays.RemoveAt(i--);
+                    coroutine.Delay -= deltaTime;
+
+                    if(coroutine.Delay > 0) continue;
+                }
+
+                bool moveNext = MoveNext(coroutine, deltaTime);
+
+                if(!moveNext)
+                {
+                    corountineForRemoval.Enqueue(coroutine.MethodName);
                 }
             }
-            return true;
-        }
-        return false;
-    }
 
-    bool MoveNext(IEnumerator routine, int index)
-    {
-        if (routine.Current is IEnumerator enumerator)
+            while(corountineForRemoval.TryDequeue(out string methodName))
+            {
+                _coroutines.Remove(methodName);
+            }
+        }
+
+        private bool MoveNext(CoroutineHandle coroutine, float deltaTime)
         {
-            if (MoveNext(enumerator, index))
-                return true;
+            bool result = coroutine.Enumerator.MoveNext();
 
-            delays[index] = 0f;
+            if(!result)
+                return false;
+            else if(coroutine.Enumerator.Current is null)
+                coroutine.Delay += deltaTime;
+            else if(coroutine.Enumerator.Current is float current)
+            {
+                if(UnscaledTime)
+                    coroutine.Delay += current;
+                else
+                    coroutine.Delay = current;
+            }
+
+            return result;
+        }
+    }
+
+    public class CoroutineHandle(CoroutineRunner runner, string methodName, float delay, IEnumerator enumerator)
+    {
+        public CoroutineRunner Runner => runner;
+        public string MethodName => methodName;
+        public float Delay { get; set; } = delay;
+        public IEnumerator Enumerator => enumerator;
+
+        /// <summary>
+        /// Stop this coroutine if it is running.
+        /// </summary>
+        /// <returns>True if the coroutine was stopped.</returns>
+        public bool Stop() => Runner.Stop(MethodName);
+
+        /// <summary>
+        /// A routine to wait until this coroutine has finished running.
+        /// </summary>
+        /// <returns>The wait enumerator.</returns>
+        public IEnumerator Wait()
+        {
+            if (Enumerator != null)
+            {
+                while(Runner.IsRunning(MethodName))
+                {
+                    yield return null;
+                }
+            }
         }
 
-        bool result = routine.MoveNext();
-
-        if (routine.Current is float current)
-            delays[index] = current;
-
-        return result;
+        /// <summary>
+        /// True if the enumerator is currently running.
+        /// </summary>
+        public bool IsRunning => Runner.IsRunning(MethodName);
     }
-
-    /// <summary>
-    /// How many coroutines are currently running.
-    /// </summary>
-    public int Count => running.Count;
-}
-
-/// <summary>
-/// A handle to a (potentially running) coroutine.
-/// </summary>
-/// <remarks>
-/// Construct a coroutine. Never call this manually, only use return values from Coroutines.Run().
-/// </remarks>
-/// <param name="runner">The routine's runner.</param>
-/// <param name="enumerator">The routine's enumerator.</param>
-public readonly struct CoroutineHandle(CoroutineRunner runner, IEnumerator enumerator)
-{
-    /// <summary>
-    /// Reference to the routine's runner.
-    /// </summary>
-    public CoroutineRunner Runner { get; } = runner;
-
-    /// <summary>
-    /// Reference to the routine's enumerator.
-    /// </summary>
-    public IEnumerator Enumerator { get; } = enumerator;
-
-    /// <summary>
-    /// Stop this coroutine if it is running.
-    /// </summary>
-    /// <returns>True if the coroutine was stopped.</returns>
-    public readonly bool Stop()
-    {
-        return IsRunning && Runner.Stop(Enumerator);
-    }
-
-    /// <summary>
-    /// A routine to wait until this coroutine has finished running.
-    /// </summary>
-    /// <returns>The wait enumerator.</returns>
-    public readonly IEnumerator Wait()
-    {
-        if (Enumerator != null)
-            while (Runner.IsRunning(Enumerator))
-                yield return null;
-    }
-
-    /// <summary>
-    /// True if the enumerator is currently running.
-    /// </summary>
-    public readonly bool IsRunning => Enumerator != null && Runner.IsRunning(Enumerator);
 }
