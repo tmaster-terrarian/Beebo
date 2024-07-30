@@ -49,7 +49,7 @@ namespace Coroutines
         /// </summary>
         public int Count => _coroutines.Count;
 
-        private Dictionary<string, CoroutineHandle> _coroutines = [];
+        private readonly Dictionary<string, CoroutineHandle> _coroutines = [];
 
         public CoroutineHandle Run(string methodName, IEnumerator enumerator, float delay = 0f)
         {
