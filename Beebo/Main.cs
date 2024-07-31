@@ -7,8 +7,10 @@ using Jelly;
 
 namespace Beebo;
 
-public class Main : Game
+public class Main : GameServer
 {
+    static Main _instance = null;
+
     public static Point MousePosition => new(
         Mouse.GetState().X / Renderer.PixelScale,
         Mouse.GetState().Y / Renderer.PixelScale
@@ -24,6 +26,10 @@ public class Main : Game
 
     public Main()
     {
+        if(_instance is not null) throw new System.Exception("You can't start the game more than once 4head");
+
+        _instance = this;
+
         _graphics = new GraphicsDeviceManager(this)
         {
             PreferMultiSampling = false,
@@ -39,16 +45,16 @@ public class Main : Game
 
     protected override void Initialize()
     {
-        Renderer.Initialize(_graphics, GraphicsDevice, Window);
+        if(!Server) Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
         camera = new Camera();
 
-        base.Initialize();
+        if(!Server) base.Initialize();
     }
 
     protected override void LoadContent()
     {
-        Renderer.LoadContent(Content);
+        if(!Server) Renderer.LoadContent(Content);
     }
 
     protected override void Update(GameTime gameTime)
