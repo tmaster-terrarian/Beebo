@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 internal class Program
 {
@@ -10,7 +11,6 @@ internal class Program
 
     private static Process process;
     private static bool running;
-    private static bool waitForInput;
 
     private static readonly List<string> commands = [
         "help",
@@ -19,28 +19,34 @@ internal class Program
 
     private static void Main(string[] args)
     {
+        try
+        {
+            HandleConsole(args);
+        }
+        catch(Exception e)
+        {
+            WriteError(e);
+            WaitForInput();
+        }
+    }
+
+    private static void HandleConsole(string[] args)
+    {
         List<string> argumentList = new(args);
-
-        AppDomain.CurrentDomain.ProcessExit += AppDomain_ProcessExit;
-
-        Console.InputEncoding = System.Text.Encoding.ASCII;
-        Console.TreatControlCAsInput = true;
-
-        Console.WriteLine("Welcome to the Beebo dedicated server!");
-        Console.WriteLine();
 
         var cd = AppDomain.CurrentDomain.BaseDirectory;
 
+        Console.WriteLine("Welcome to the Beebo dedicated server\n");
+
         if(!argumentList.Contains("-noSteam")) // steamworks setup
         {
-            string message = "The program was instructed to run with steamworks enabled, but the following steam libraries could not be found:";
-
             bool apiDll = FileExists("steam_api64.dll");
             bool steamworksDotNetDll = FileExists("Steamworks.NET.dll");
 
             if(!apiDll || !steamworksDotNetDll)
             {
-                WriteError(new FileNotFoundException(message));
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("The program was instructed to run with steamworks enabled, but the following required files could not be found:");
 
                 if(!apiDll)
                 {
@@ -52,33 +58,31 @@ internal class Program
                     Console.WriteLine("  Steamworks.NET.dll");
                 }
 
-                WaitForInput();
+                Cleanup();
                 return;
             }
 
             if(!FileExists("steam_appid.txt"))
             {
-                using var writer = File.CreateText("steam_appid.txt");
-                {
-                    writer.Write(steam_appid);
-                    writer.Close();
-                }
+                using var writer = File.CreateText(Path.Combine(cd, "steam_appid.txt"));
+                writer.Write(steam_appid);
+                writer.Close();
             }
         }
 
         if(CheckMissing(Path.Combine(cd, "Beebo.dll"), "Beebo.dll"))
         {
-            WaitForInput();
+            Cleanup();
             return;
         }
 
         if(CheckMissing(Path.Combine(cd, "Beebo.exe"), "Beebo.exe"))
         {
-            WaitForInput();
+            Cleanup();
             return;
         }
 
-        var others = Process.GetProcessesByName("Beebo");
+        var others = Process.GetProcessesByName("Beebo.exe");
         if(others.Length > 0)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -100,63 +104,34 @@ internal class Program
             process = Process.Start(info);
             process.EnableRaisingEvents = true;
 
+            process.Exited += Process_Exited;
+
             running = true;
+
+            AppDomain.CurrentDomain.ProcessExit += AppDomain_ProcessExit;
         }
         catch(Exception e)
         {
             process?.Kill();
             WriteError(e);
 
-            waitForInput = true;
+            Cleanup();
+            return;
         }
 
-        System.Threading.Tasks.Task.Run(() => {
-            while(running)
-            {
-                Console.Title = "Beebo Dedicated Server - " + GC.GetTotalMemory(false);
-                Thread.Sleep(1000);
-            }
-        });
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+        WriteLoop();
+        WriteErrorLoop();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
-        System.Threading.Tasks.Task.Run(() => {
-            while(running)
-            {
-                try
-                {
-                    var data = process.StandardOutput.Read();
-                    if(data != -1)
-                    {
-                        Console.Write((char)data);
-                    }
-                }
-                catch(Exception e)
-                {
-                    WriteError(e);
-                }
-
-                // Thread.Sleep(new TimeSpan(16666667));
-            }
-        });
-
-        while(running)
+        while (running)
         {
-            if(process.HasExited)
-            {
-                break;
-            }
-
             try
             {
-                var input = Console.ReadLine();
-                if(input is not null)
+                var input = Console.In.ReadLine();
+                if(input is not null && input != "")
                 {
-                    while(input.StartsWith(' '))
-                    {
-                        input = input.Replace(" ", "");
-                    }
-
-                    if(input != "")
-                        ReadCommand(input);
+                    ReadCommand(input);
                 }
             }
             catch(Exception e)
@@ -165,7 +140,60 @@ internal class Program
             }
         }
 
-        if(waitForInput)
+        Cleanup(false);
+    }
+
+    private static void Process_Exited(object sender, EventArgs e)
+    {
+        if(running)
+        {
+            running = false;
+            WriteError("Beebo has closed unexpectedly, press any key to continue.");
+            Console.ReadKey();
+        }
+    }
+
+    private static async Task WriteLoop()
+    {
+        while (running)
+        {
+            try
+            {
+                string? data = await process?.StandardOutput.ReadLineAsync();
+                if (data != null)
+                {
+                    Console.WriteLine(data);
+                }
+            }
+            catch (Exception e)
+            {
+                WriteError(e);
+            }
+        }
+    }
+
+    private static async Task WriteErrorLoop()
+    {
+        while (running)
+        {
+            try
+            {
+                string? data = await process?.StandardError.ReadLineAsync();
+                if (data != null)
+                {
+                    WriteError(data);
+                }
+            }
+            catch (Exception e)
+            {
+                WriteError(e);
+            }
+        }
+    }
+
+    private static void Cleanup(bool wait = true)
+    {
+        if(wait)
         {
             WaitForInput();
         }
@@ -188,14 +216,14 @@ internal class Program
 
     private static void WaitForInput()
     {
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.White;
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
         Console.WriteLine("\nPress any key to exit.");
         Console.ReadKey();
     }
 
     private static void AppDomain_ProcessExit(object sender, EventArgs e)
     {
+        running = false;
         process?.Kill();
     }
 
@@ -205,16 +233,14 @@ internal class Program
 
         try
         {
-            switch(value)
+            if(running) switch(value)
             {
                 case "exit":
-                {
-                    process?.Kill();
                     running = false;
+                    process?.Kill();
+                    WaitForInput();
                     return;
-                }
                 case "help":
-                {
                     Console.WriteLine("List of available commands:");
 
                     foreach(var name in commands)
@@ -225,15 +251,12 @@ internal class Program
                     Console.WriteLine();
 
                     return;
-                }
             }
         }
         catch(Exception e)
         {
             WriteError(e);
         }
-
-        Console.ForegroundColor = ConsoleColor.Gray;
     }
 
     private static void WriteError(object e)

@@ -58,8 +58,10 @@ public static class SteamManager
 
         {
             uint length = SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260);
-            Logger.Info("AppInstallDir: " + length + " " + folder);
+            Logger.Info("Steam AppInstallDir: " + length + " " + folder);
         }
+
+        Logger.Info("AppDir: " + Main.ProgramPath.Length + " " + Main.ProgramPath);
 
         m_NumberOfCurrentPlayers.Set(SteamUserStats.GetNumberOfCurrentPlayers());
         Logger.Info("Requesting Number of Current Players");

@@ -74,16 +74,19 @@ public class Main : Jelly.GameServer
             IsClient = false;
         }
 
+        Trace.AutoFlush = true;
         Trace.Listeners.Clear();
 
         if(Console.IsOutputRedirected)
         {
-            TextWriterTraceListener tr1 = new TextWriterTraceListener(Console.Out);
+            TextWriterTraceListener tr1 = new ConsoleTraceListener();
             Trace.Listeners.Add(tr1);
         }
 
         TextWriterTraceListener tr2 = new TextWriterTraceListener(File.CreateText(Path.Combine(ProgramPath, "latest.log")));
         Trace.Listeners.Add(tr2);
+
+        Logger.Error(new Exception("hello"));
 
         if(Program.UseSteamworks)
         {
@@ -124,14 +127,14 @@ public class Main : Jelly.GameServer
         if(!Server)
         {
             Renderer.LoadContent(Content);
-        }
 
-        if(Program.UseSteamworks)
-        {
-            if(SteamManager.IsSteamRunning)
+            if(Program.UseSteamworks)
             {
-                pfp = GetSteamUserAvatar(GraphicsDevice);
-                username = SteamFriends.GetPersonaName();
+                if(SteamManager.IsSteamRunning)
+                {
+                    pfp = GetSteamUserAvatar(GraphicsDevice);
+                    username = SteamFriends.GetPersonaName();
+                }
             }
         }
     }
@@ -195,6 +198,8 @@ public class Main : Jelly.GameServer
 
     private void Game_Exiting(object sender, EventArgs e)
     {
+        Logger.Info("Shutting down Steam...");
+
         if(SteamManager.IsSteamRunning)
             SteamAPI.Shutdown();
     }
