@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -9,6 +10,7 @@ using Beebo.Multiplayer;
 
 using Jelly;
 using Jelly.Graphics;
+using Jelly.IO;
 
 using Steamworks;
 
@@ -18,7 +20,14 @@ public class Main : Jelly.GameServer
 {
     static Main _instance = null;
 
-    public static Logger Log { get; private set; }
+    public static class AppMetadata
+    {
+        public const string Name = "Beebo";
+        public const string Version = "1.0.0.0";
+        public const int Build = 1;
+    }
+
+    public static Logger Logger { get; } = new();
 
     public static Point MousePosition => new(
         Mouse.GetState().X / Renderer.PixelScale,
@@ -32,10 +41,13 @@ public class Main : Jelly.GameServer
 
     public static bool IsClient { get; private set; }
 
+    public static string SaveDataPath => new PathBuilder{AppendFinalSeparator = true}.Create(PathBuilder.LocalAppdataPath, AppMetadata.Name);
+    public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
+
     readonly GraphicsDeviceManager _graphics;
     Camera camera;
 
-    bool steamFailed;
+    readonly bool steamFailed;
     Texture2D? pfp;
     string username;
 
@@ -57,39 +69,50 @@ public class Main : Jelly.GameServer
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
 
-        Log = new();
-
-        TextWriterTraceListener tr1 = new TextWriterTraceListener(Console.Out);
-        Trace.Listeners.Add(tr1);
-
-        Log.Info("Entering main loop");
-        Log.Info("hello");
-
-        try
+        if(Server)
         {
-            if(SteamAPI.RestartAppIfNecessary((AppId_t)SteamManager.steam_appid))
+            IsClient = false;
+        }
+
+        Trace.Listeners.Clear();
+
+        if(Console.IsOutputRedirected)
+        {
+            TextWriterTraceListener tr1 = new TextWriterTraceListener(Console.Out);
+            Trace.Listeners.Add(tr1);
+        }
+
+        TextWriterTraceListener tr2 = new TextWriterTraceListener(File.CreateText(Path.Combine(ProgramPath, "latest.log")));
+        Trace.Listeners.Add(tr2);
+
+        if(Program.UseSteamworks)
+        {
+            try
             {
-                Console.Out.WriteLine("Game wasn't started by Steam-client. Restarting.");
-                Exit();
+                if(SteamAPI.RestartAppIfNecessary(SteamManager.AppId))
+                {
+                    Logger.Error("Steamworks.NET", "Game wasn't started by Steam-client! Restarting..");
+                    Exit();
+                }
+            }
+            catch(DllNotFoundException e)
+            {
+                // We check this here as it will be the first instance of it.
+                Logger.Error("Steamworks.NET", "Could not load [lib]steam_api.dll/so/dylib. It's likely not in the correct location. Refer to the README for more details.\nCaused by " + e);
+                steamFailed = true;
             }
         }
-        catch(DllNotFoundException e)
-        {
-            // We check this here as it will be the first instance of it.
-            Logger.ErrorGeneric("Steamworks.NET", "Could not load [lib]steam_api.dll/so/dylib. It's likely not in the correct location. Refer to the README for more details.\nCaused by " + e);
-            steamFailed = true;
-        }
-
-        if(Server) IsClient = false;
     }
 
     protected override void Initialize()
     {
+        Logger.Info("Entering main loop");
+
         if(!Server) Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
         camera = new Camera();
 
-        if(!steamFailed && SteamManager.Init())
+        if(Program.UseSteamworks && !steamFailed && SteamManager.Init())
             Exiting += Game_Exiting;
 
         if(!Server) base.Initialize();
@@ -103,17 +126,23 @@ public class Main : Jelly.GameServer
             Renderer.LoadContent(Content);
         }
 
-        if(SteamManager.IsSteamRunning)
+        if(Program.UseSteamworks)
         {
-            pfp = GetSteamUserAvatar(GraphicsDevice);
-            username = SteamFriends.GetPersonaName();
+            if(SteamManager.IsSteamRunning)
+            {
+                pfp = GetSteamUserAvatar(GraphicsDevice);
+                username = SteamFriends.GetPersonaName();
+            }
         }
     }
 
     protected override void Update(GameTime gameTime)
     {
-        if(SteamManager.IsSteamRunning)
-            SteamAPI.RunCallbacks();
+        if(Program.UseSteamworks)
+        {
+            if(SteamManager.IsSteamRunning)
+                SteamAPI.RunCallbacks();
+        }
 
         Input.RefreshKeyboardState();
         Input.RefreshMouseState();
@@ -146,12 +175,15 @@ public class Main : Jelly.GameServer
         Renderer.EndDraw();
         Renderer.BeginDrawUI();
 
-        if(SteamManager.IsSteamRunning)
+        if(Program.UseSteamworks)
         {
-            if(pfp != null)
+            if(SteamManager.IsSteamRunning)
             {
-                Renderer.SpriteBatch.Draw(pfp, new Vector2(2, 2), Color.White);
-                Renderer.SpriteBatch.DrawString(Renderer.RegularFont, username, new Vector2(2, 2) + Vector2.UnitY * pfp.Height, Color.White, 0, Vector2.Zero, 2, SpriteEffects.None, 0);
+                if(pfp != null)
+                {
+                    Renderer.SpriteBatch.Draw(pfp, new Vector2(2, 2), Color.White);
+                    Renderer.SpriteBatch.DrawString(Renderer.RegularFont, username, new Vector2(2, 2) + Vector2.UnitY * pfp.Height, Color.White);
+                }
             }
         }
 

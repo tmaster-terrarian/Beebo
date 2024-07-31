@@ -1,12 +1,16 @@
 using System;
-
+using Jelly;
 using Steamworks;
 
 namespace Beebo.Multiplayer;
 
-public class SteamManager
+public static class SteamManager
 {
     public const uint steam_appid = 480;
+
+    public static AppId_t AppId => (AppId_t)steam_appid;
+
+    public static Logger Logger { get; } = new("Steamworks.NET");
 
     private static CallResult<NumberOfCurrentPlayers_t> m_NumberOfCurrentPlayers;
     private static CallResult<LeaderboardFindResult_t> m_callResultFindLeaderboard;
@@ -15,33 +19,31 @@ public class SteamManager
 
     public static bool IsSteamRunning { get; set; } = false;
 
-    private SteamManager() {}
-
     public static bool Init()
     {
         try
         {
             if(!SteamAPI.Init())
             {
-                Console.WriteLine("SteamAPI.Init() failed!");
+                Logger.Error("SteamAPI.Init() failed!");
                 return false;
             }
         }
         catch(DllNotFoundException e) // We check this here as it will be the first instance of it.
         {
-            Console.WriteLine(e);
+            Logger.Error(e);
             return false;
         }
 
         if(!Packsize.Test())
         {
-            Console.WriteLine("You're using the wrong Steamworks.NET Assembly for this platform!");
+            Logger.Error("You're using the wrong Steamworks.NET Assembly for this platform!");
             return false;
         }
 
         if(!DllCheck.Test())
         {
-            Console.WriteLine("You're using the wrong dlls for this platform!");
+            Logger.Error("You're using the wrong dlls for this platform!");
             return false;
         }
 
@@ -49,23 +51,23 @@ public class SteamManager
 
         InitializeCallbacks(); // We do this after SteamAPI.Init() has occured
 
-        Console.WriteLine("Requesting Current Stats - " + SteamUserStats.RequestCurrentStats());
+        Logger.Info("Requesting Current Stats - " + SteamUserStats.RequestCurrentStats());
 
-        Console.WriteLine("CurrentGameLanguage: " + SteamApps.GetCurrentGameLanguage());
-        Console.WriteLine("PersonaName: " + SteamFriends.GetPersonaName());
+        Logger.Info("CurrentGameLanguage: " + SteamApps.GetCurrentGameLanguage());
+        Logger.Info("PersonaName: " + SteamFriends.GetPersonaName());
 
         {
             uint length = SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260);
-            Console.WriteLine("AppInstallDir: " + length + " " + folder);
+            Logger.Info("AppInstallDir: " + length + " " + folder);
         }
 
         m_NumberOfCurrentPlayers.Set(SteamUserStats.GetNumberOfCurrentPlayers());
-        Console.WriteLine("Requesting Number of Current Players");
+        Logger.Info("Requesting Number of Current Players");
 
         {
             SteamAPICall_t hSteamAPICall = SteamUserStats.FindLeaderboard("Quickest Win");
             m_callResultFindLeaderboard.Set(hSteamAPICall);
-            Console.WriteLine("Requesting Leaderboard");
+            Logger.Info("Requesting Leaderboard");
         }
 
         return true;
@@ -78,19 +80,19 @@ public class SteamManager
         m_PersonaStateChange = Callback<PersonaStateChange_t>.Create(OnPersonaStateChange);
         m_UserStatsReceived = Callback<UserStatsReceived_t>.Create(
             (pCallback) => {
-                Console.WriteLine("[" + UserStatsReceived_t.k_iCallback + " - UserStatsReceived] - " + pCallback.m_eResult + " -- " + pCallback.m_nGameID + " -- " + pCallback.m_steamIDUser);
+                Logger.Info("[" + UserStatsReceived_t.k_iCallback + " - UserStatsReceived] - " + pCallback.m_eResult + " -- " + pCallback.m_nGameID + " -- " + pCallback.m_steamIDUser);
             });
     }
 
     private static void OnNumberOfCurrentPlayers(NumberOfCurrentPlayers_t pCallback, bool bIOFailure) {
-        Console.WriteLine("[" + NumberOfCurrentPlayers_t.k_iCallback + " - NumberOfCurrentPlayers] - " + pCallback.m_bSuccess + " -- " + pCallback.m_cPlayers);
+        Logger.Info("[" + NumberOfCurrentPlayers_t.k_iCallback + " - NumberOfCurrentPlayers] - " + pCallback.m_bSuccess + " -- " + pCallback.m_cPlayers);
     }
 
     private static void OnFindLeaderboard(LeaderboardFindResult_t pCallback, bool bIOFailure) {
-        Console.WriteLine("[" + LeaderboardFindResult_t.k_iCallback + " - LeaderboardFindResult] - " + pCallback.m_bLeaderboardFound + " -- " + pCallback.m_hSteamLeaderboard);
+        Logger.Info("[" + LeaderboardFindResult_t.k_iCallback + " - LeaderboardFindResult] - " + pCallback.m_bLeaderboardFound + " -- " + pCallback.m_hSteamLeaderboard);
     }
 
     private static void OnPersonaStateChange(PersonaStateChange_t pCallback) {
-        Console.WriteLine("[" + PersonaStateChange_t.k_iCallback + " - PersonaStateChange] - " + pCallback.m_ulSteamID + " -- " + pCallback.m_nChangeFlags);
+        Logger.Info("[" + PersonaStateChange_t.k_iCallback + " - PersonaStateChange] - " + pCallback.m_ulSteamID + " -- " + pCallback.m_nChangeFlags);
     }
 }

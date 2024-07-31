@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 
 internal class Program
 {
+    private const uint steam_appid = 480;
+
     private static Process process;
     private static bool running;
     private static bool waitForInput;
@@ -16,6 +19,8 @@ internal class Program
 
     private static void Main(string[] args)
     {
+        List<string> argumentList = new(args);
+
         AppDomain.CurrentDomain.ProcessExit += AppDomain_ProcessExit;
 
         Console.InputEncoding = System.Text.Encoding.ASCII;
@@ -24,15 +29,66 @@ internal class Program
         Console.WriteLine("Welcome to the Beebo dedicated server!");
         Console.WriteLine();
 
+        var cd = AppDomain.CurrentDomain.BaseDirectory;
+
+        if(!argumentList.Contains("-noSteam")) // steamworks setup
+        {
+            string message = "The program was instructed to run with steamworks enabled, but the following steam libraries could not be found:";
+
+            bool apiDll = FileExists("steam_api64.dll");
+            bool steamworksDotNetDll = FileExists("Steamworks.NET.dll");
+
+            if(!apiDll || !steamworksDotNetDll)
+            {
+                WriteError(new FileNotFoundException(message));
+
+                if(!apiDll)
+                {
+                    Console.WriteLine("  steam_api64.dll");
+                }
+
+                if(!steamworksDotNetDll)
+                {
+                    Console.WriteLine("  Steamworks.NET.dll");
+                }
+
+                WaitForInput();
+                return;
+            }
+
+            if(!FileExists("steam_appid.txt"))
+            {
+                using var writer = File.CreateText("steam_appid.txt");
+                {
+                    writer.Write(steam_appid);
+                    writer.Close();
+                }
+            }
+        }
+
+        if(CheckMissing(Path.Combine(cd, "Beebo.dll"), "Beebo.dll"))
+        {
+            WaitForInput();
+            return;
+        }
+
+        if(CheckMissing(Path.Combine(cd, "Beebo.exe"), "Beebo.exe"))
+        {
+            WaitForInput();
+            return;
+        }
+
         var others = Process.GetProcessesByName("Beebo");
         if(others.Length > 0)
         {
-            Console.WriteLine("Other Beebo processes were detected, ensure that they are not unwanted.");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Other Beebo processes were detected, be sure to look into that if you didn't start them.");
+            Console.ForegroundColor = ConsoleColor.Gray;
         }
 
         ProcessStartInfo info = new() {
             FileName = "Beebo.exe",
-            Arguments = "-dedServer" + (args.Length > 0 ? ' ' + string.Join<string>(' ', args) : ""),
+            Arguments = "-dedServer" + (args.Length > 0 ? ' ' + string.Join(' ', args) : ""),
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -67,10 +123,10 @@ internal class Program
             {
                 try
                 {
-                    var line = process.StandardOutput.ReadLine();
-                    if(line is not null)
+                    var data = process.StandardOutput.Read();
+                    if(data != -1)
                     {
-                        Console.WriteLine(line);
+                        Console.Write((char)data);
                     }
                 }
                 catch(Exception e)
@@ -111,29 +167,31 @@ internal class Program
 
         if(waitForInput)
         {
-            Console.WriteLine("\nPress any key to exit.");
-            Console.ReadKey();
+            WaitForInput();
         }
     }
 
-    private static async void StartLineRead()
+    private static bool FileExists(string path)
     {
-        while(running)
+        return File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path));
+    }
+
+    private static bool CheckMissing(string path, string? fileName = null)
+    {
+        if(!File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path)))
         {
-            try
-            {
-                var line = await process.StandardOutput.ReadLineAsync();
-                if(line is not null)
-                {
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                    Console.WriteLine(line);
-                }
-            }
-            catch(Exception e)
-            {
-                WriteError(e);
-            }
+            WriteError(new FileNotFoundException($"{fileName ?? path} could not be located, ensure that the file and Beebo.Server.exe are in the same folder.", fileName));
+            return true;
         }
+        return false;
+    }
+
+    private static void WaitForInput()
+    {
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.WriteLine("\nPress any key to exit.");
+        Console.ReadKey();
     }
 
     private static void AppDomain_ProcessExit(object sender, EventArgs e)
