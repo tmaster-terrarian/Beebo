@@ -1,4 +1,7 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 
 internal class Program
 {
@@ -6,36 +9,72 @@ internal class Program
     private static bool running;
     private static bool waitForInput;
 
+    private static readonly List<string> commands = [
+        "help",
+        "exit"
+    ];
+
     private static void Main(string[] args)
     {
         AppDomain.CurrentDomain.ProcessExit += AppDomain_ProcessExit;
 
+        Console.InputEncoding = System.Text.Encoding.ASCII;
+        Console.TreatControlCAsInput = true;
+
         Console.WriteLine("Welcome to the Beebo dedicated server!");
+        Console.WriteLine();
 
         ProcessStartInfo info = new() {
             FileName = "Beebo.exe",
-            Arguments = "-dedServer",
+            Arguments = "-dedServer" + (args.Length > 0 ? ' ' + string.Join<string>(' ', args) : ""),
             UseShellExecute = false,
             RedirectStandardOutput = true,
-            CreateNoWindow = true
+            RedirectStandardError = true,
+            CreateNoWindow = true,
         };
 
         try
         {
             process = Process.Start(info);
             process.EnableRaisingEvents = true;
-            process.OutputDataReceived += Process_OutputDataRecieved;
-            process.ErrorDataReceived += Process_ErrorDataRecieved;
 
             running = true;
         }
         catch(Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(e.ToString());
-            Console.ForegroundColor = ConsoleColor.Gray;
+            process?.Kill();
+            WriteError(e);
+
             waitForInput = true;
         }
+
+        System.Threading.Tasks.Task.Run(() => {
+            while(running)
+            {
+                Console.Title = "Beebo Dedicated Server - " + GC.GetTotalMemory(false);
+                Thread.Sleep(1000);
+            }
+        });
+
+        System.Threading.Tasks.Task.Run(() => {
+            while(running)
+            {
+                try
+                {
+                    var line = process.StandardOutput.ReadLine();
+                    if(line is not null)
+                    {
+                        Console.WriteLine(line);
+                    }
+                }
+                catch(Exception e)
+                {
+                    WriteError(e);
+                }
+
+                // Thread.Sleep(new TimeSpan(16666667));
+            }
+        });
 
         while(running)
         {
@@ -44,30 +83,50 @@ internal class Program
                 break;
             }
 
-            var input = Console.ReadLine();
-            if(input is not null && input != "")
+            try
             {
-                while(input.StartsWith(' '))
+                var input = Console.ReadLine();
+                if(input is not null)
                 {
-                    input = input.Replace(" ", "");
-                }
+                    while(input.StartsWith(' '))
+                    {
+                        input = input.Replace(" ", "");
+                    }
 
-                try
-                {
-                    ReadCommand(input);
+                    if(input != "")
+                        ReadCommand(input);
                 }
-                catch(Exception e)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(e.ToString());
-                    Console.ForegroundColor = ConsoleColor.Gray;
-                }
+            }
+            catch(Exception e)
+            {
+                WriteError(e);
             }
         }
 
         if(waitForInput)
         {
+            Console.WriteLine("\nPress any key to exit.");
             Console.ReadKey();
+        }
+    }
+
+    private static async void StartLineRead()
+    {
+        while(running)
+        {
+            try
+            {
+                var line = await process.StandardOutput.ReadLineAsync();
+                if(line is not null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    Console.WriteLine(line);
+                }
+            }
+            catch(Exception e)
+            {
+                WriteError(e);
+            }
         }
     }
 
@@ -80,28 +139,43 @@ internal class Program
     {
         Console.ForegroundColor = ConsoleColor.White;
 
-        switch(value)
+        try
         {
-            case "exit":
+            switch(value)
             {
-                process?.Kill();
-                running = false;
-                return;
+                case "exit":
+                {
+                    process?.Kill();
+                    running = false;
+                    return;
+                }
+                case "help":
+                {
+                    Console.WriteLine("List of available commands:");
+
+                    foreach(var name in commands)
+                    {
+                        Console.WriteLine("  " + name);
+                    }
+
+                    Console.WriteLine();
+
+                    return;
+                }
             }
+        }
+        catch(Exception e)
+        {
+            WriteError(e);
         }
 
         Console.ForegroundColor = ConsoleColor.Gray;
     }
 
-    private static void Process_OutputDataRecieved(object sender, DataReceivedEventArgs e)
-    {
-        Console.ForegroundColor = ConsoleColor.Gray;
-        Console.WriteLine(e.Data ?? "");
-    }
-
-    private static void Process_ErrorDataRecieved(object sender, DataReceivedEventArgs e)
+    private static void WriteError(object e)
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine(e.Data ?? "");
+        Console.WriteLine(e.ToString());
+        Console.ForegroundColor = ConsoleColor.Gray;
     }
 }

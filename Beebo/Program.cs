@@ -1,4 +1,6 @@
-﻿internal class Program
+﻿using System.Collections.Generic;
+
+internal class Program
 {
     private static void Main(string[] args)
     {
@@ -6,7 +8,9 @@
 
         if(args.Length > 0)
         {
-            if(args[0] == "-dedServer")
+            List<string> list = new(args);
+
+            if(list.Contains("-dedServer"))
             {
                 game.Server = true;
             }

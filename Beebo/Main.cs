@@ -43,24 +43,29 @@ public class Main : GameServer
 
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
+
+        Logger = new();
+
+        Logger.Info("Entering main loop");
+        Logger.Info("hello");
     }
 
     protected override void Initialize()
     {
         if(!Server) Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
-        Logger = new();
-
         camera = new Camera();
 
         if(!Server) base.Initialize();
-
-        Logger.Info("Entering main loop");
+        else LoadContent();
     }
 
     protected override void LoadContent()
     {
-        if(!Server) Renderer.LoadContent(Content);
+        if(!Server)
+        {
+            Renderer.LoadContent(Content);
+        }
     }
 
     protected override void Update(GameTime gameTime)
