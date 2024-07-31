@@ -11,6 +11,8 @@ public class Main : GameServer
 {
     static Main _instance = null;
 
+    public static Logger Logger { get; private set; }
+
     public static Point MousePosition => new(
         Mouse.GetState().X / Renderer.PixelScale,
         Mouse.GetState().Y / Renderer.PixelScale
@@ -47,9 +49,13 @@ public class Main : GameServer
     {
         if(!Server) Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
+        Logger = new();
+
         camera = new Camera();
 
         if(!Server) base.Initialize();
+
+        Logger.Info("Entering main loop");
     }
 
     protected override void LoadContent()
