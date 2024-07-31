@@ -24,6 +24,12 @@ internal class Program
         Console.WriteLine("Welcome to the Beebo dedicated server!");
         Console.WriteLine();
 
+        var others = Process.GetProcessesByName("Beebo");
+        if(others.Length > 0)
+        {
+            Console.WriteLine("Other Beebo processes were detected, ensure that they are not unwanted.");
+        }
+
         ProcessStartInfo info = new() {
             FileName = "Beebo.exe",
             Arguments = "-dedServer" + (args.Length > 0 ? ' ' + string.Join<string>(' ', args) : ""),

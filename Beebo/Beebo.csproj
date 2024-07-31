@@ -26,6 +26,18 @@
     <PackageReference Include="Nopipeline.Task" Version="2.2.0" />
     <ProjectReference Include="../Beebo.Server/Beebo.Server.csproj" />
     <ProjectReference Include="../Jelly/Jelly.csproj" />
+    <Reference Include="Steamworks.NET, Version=20.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>Steamworks.NET.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="steam_api64.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="steam_appid.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Target Name="RestoreDotnetTools" BeforeTargets="Restore">
     <Message Text="Restoring dotnet tools" Importance="High" />
