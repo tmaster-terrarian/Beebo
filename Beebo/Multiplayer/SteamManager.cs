@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using Jelly;
+using Microsoft.Xna.Framework.Input;
 using Steamworks;
 
 namespace Beebo.Multiplayer;
@@ -8,18 +10,15 @@ public static class SteamManager
 {
     public const uint steam_appid = 480;
 
-    public static AppId_t AppId => (AppId_t)steam_appid;
+    public static AppId_t AppID => (AppId_t)steam_appid;
 
     public static Logger Logger { get; } = new("Steamworks.NET");
 
-    private static CallResult<NumberOfCurrentPlayers_t> m_NumberOfCurrentPlayers;
-    private static CallResult<LeaderboardFindResult_t> m_callResultFindLeaderboard;
-    private static Callback<PersonaStateChange_t> m_PersonaStateChange;
-    private static Callback<UserStatsReceived_t> m_UserStatsReceived;
+    private static readonly List<LobbyMember> Players = [];
 
     public static bool IsSteamRunning { get; set; } = false;
 
-    public static bool Init()
+    public static bool Init(bool server = false)
     {
         try
         {
@@ -63,38 +62,70 @@ public static class SteamManager
 
         Logger.Info("AppDir: " + Main.ProgramPath.Length + " " + Main.ProgramPath);
 
-        m_NumberOfCurrentPlayers.Set(SteamUserStats.GetNumberOfCurrentPlayers());
+        SteamCallbacks.m_NumberOfCurrentPlayers.Set(SteamUserStats.GetNumberOfCurrentPlayers());
         Logger.Info("Requesting Number of Current Players");
 
-        {
-            SteamAPICall_t hSteamAPICall = SteamUserStats.FindLeaderboard("Quickest Win");
-            m_callResultFindLeaderboard.Set(hSteamAPICall);
-            Logger.Info("Requesting Leaderboard");
-        }
+        SteamCallbacks.m_CallResultFindLeaderboard.Set(SteamUserStats.FindLeaderboard("Quickest Win"));
+        Logger.Info("Requesting Leaderboard");
 
         return true;
     }
 
+    public static void Cleanup()
+    {
+        Logger.Info("Shutting down Steam...");
+        SteamAPI.Shutdown();
+    }
+
+    public static void Update()
+    {
+        if(Main.IsOnline && Input.GetDown(Keys.F1))
+        {
+            Main.IsClient = false;
+            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePrivate, 4);
+        }
+    }
+
     private static void InitializeCallbacks()
     {
-        m_NumberOfCurrentPlayers = CallResult<NumberOfCurrentPlayers_t>.Create(OnNumberOfCurrentPlayers);
-        m_callResultFindLeaderboard = CallResult<LeaderboardFindResult_t>.Create(OnFindLeaderboard);
-        m_PersonaStateChange = Callback<PersonaStateChange_t>.Create(OnPersonaStateChange);
-        m_UserStatsReceived = Callback<UserStatsReceived_t>.Create(
-            (pCallback) => {
-                Logger.Info("[" + UserStatsReceived_t.k_iCallback + " - UserStatsReceived] - " + pCallback.m_eResult + " -- " + pCallback.m_nGameID + " -- " + pCallback.m_steamIDUser);
-            });
+        SteamCallbacks.Initialize();
     }
 
-    private static void OnNumberOfCurrentPlayers(NumberOfCurrentPlayers_t pCallback, bool bIOFailure) {
-        Logger.Info("[" + NumberOfCurrentPlayers_t.k_iCallback + " - NumberOfCurrentPlayers] - " + pCallback.m_bSuccess + " -- " + pCallback.m_cPlayers);
-    }
+    // private static void OnSteamNetConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t pCallback)
+    // {
+    //     if(!Main.IsClient)
+    //     {
+    //         if(pCallback.m_info.m_hListenSocket == ListenSocket)
+    //         {
+    //             if(pCallback.m_eOldState == ESteamNetworkingConnectionState.k_ESteamNetworkingConnectionState_None
+    //             && pCallback.m_info.m_eState == ESteamNetworkingConnectionState.k_ESteamNetworkingConnectionState_Connecting)
+    //             {
+    //                 var id = pCallback.m_info.m_identityRemote.GetSteamID();
 
-    private static void OnFindLeaderboard(LeaderboardFindResult_t pCallback, bool bIOFailure) {
-        Logger.Info("[" + LeaderboardFindResult_t.k_iCallback + " - LeaderboardFindResult] - " + pCallback.m_bLeaderboardFound + " -- " + pCallback.m_hSteamLeaderboard);
-    }
+    //                 Logger.Info("Receiving connection attempt from user " + id + " (" + SteamFriends.GetFriendPersonaName(id) + ")");
 
-    private static void OnPersonaStateChange(PersonaStateChange_t pCallback) {
-        Logger.Info("[" + PersonaStateChange_t.k_iCallback + " - PersonaStateChange] - " + pCallback.m_ulSteamID + " -- " + pCallback.m_nChangeFlags);
-    }
+    //                 if(Players.Count >= 4)
+    //                 {
+    //                     if(SteamNetworkingSockets.CloseConnection(pCallback.m_hConn, (int)ConnectionLostReason.TooManyPlayers, "Max player count reached.", false))
+    //                     {
+    //                         Logger.Info("Booted " + id + " from server: TooManyPlayers");
+    //                     }
+    //                     return;
+    //                 }
+
+    //                 var result = SteamNetworkingSockets.AcceptConnection(pCallback.m_hConn);
+
+    //                 Players.Add(new(id));
+
+    //                 Logger.Info($"[{SteamNetConnectionStatusChangedCallback_t.k_iCallback} - SteamNetConnectionStatusChangedCallback] - {id} -- {result}");
+    //             }
+    //         }
+    //     }
+    // }
+}
+
+public enum ConnectionLostReason
+{
+    TooManyPlayers = 1000,
+    CancelledByClient = 1001
 }
