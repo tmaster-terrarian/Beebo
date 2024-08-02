@@ -4,7 +4,7 @@ using Jelly;
 
 using Steamworks;
 
-namespace Beebo.Multiplayer;
+namespace Beebo.MultiplayerTest;
 
 public static class SteamCallbacks
 {
@@ -26,7 +26,8 @@ public static class SteamCallbacks
             }
         );
 
-        CommunicationManager.InitializeCallbacks();
+        LobbyManager.InitializeCallbacks();
+        LobbyServer.InitializeCallbacks();
     }
 
     private static void OnNumberOfCurrentPlayers(NumberOfCurrentPlayers_t pCallback, bool bIOFailure)

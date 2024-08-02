@@ -3,16 +3,25 @@ using Jelly;
 using Microsoft.Xna.Framework.Input;
 using Steamworks;
 
-namespace Beebo.Multiplayer;
+namespace Beebo.MultiplayerTest;
 
 public static class LobbyServer
 {
-    public static Callback<LobbyCreated_t> Callback_lobbyCreated { get; } = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
-    public static Callback<LobbyMatchList_t> Callback_lobbyList { get; } = Callback<LobbyMatchList_t>.Create(OnGetLobbiesList);
-    public static Callback<LobbyEnter_t> Callback_lobbyEnter { get; } = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
-    public static Callback<LobbyDataUpdate_t> Callback_lobbyInfo { get; } = Callback<LobbyDataUpdate_t>.Create(OnGetLobbyInfo);
+    public static Callback<LobbyCreated_t> Callback_lobbyCreated { get; private set; }
+    public static Callback<LobbyMatchList_t> Callback_lobbyList { get; private set; }
+    public static Callback<LobbyEnter_t> Callback_lobbyEnter { get; private set; }
+    public static Callback<LobbyDataUpdate_t> Callback_lobbyInfo { get; private set; }
 
-    static ulong current_lobbyID;
+    public static ulong Current_lobbyID { get; private set; }
+
+    public static void InitializeCallbacks()
+    {
+        Callback_lobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
+        Callback_lobbyList = Callback<LobbyMatchList_t>.Create(OnGetLobbiesList);
+        Callback_lobbyEnter = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
+        Callback_lobbyInfo = Callback<LobbyDataUpdate_t>.Create(OnGetLobbyInfo);
+    }
+
     static readonly List<CSteamID> lobbyIDS = [];
 
     public static void Update()
@@ -22,6 +31,7 @@ public static class LobbyServer
         {
             SteamManager.Logger.Info("Trying to create lobby ...");
             SteamAPICall_t try_toHost = SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePrivate, 4);
+            Main.IsGameOwner = true;
         }
 
         // Command - List lobbies
@@ -36,19 +46,36 @@ public static class LobbyServer
         {
             SteamManager.Logger.Info("Trying to join FIRST listed lobby ...");
             SteamAPICall_t try_joinLobby = SteamMatchmaking.JoinLobby(SteamMatchmaking.GetLobbyByIndex(0));
+            Main.IsGameOwner = false;
         }
 
         // Command - List lobby members
         if(Input.GetPressed(Keys.Q))
         {
-            int numPlayers = SteamMatchmaking.GetNumLobbyMembers((CSteamID)current_lobbyID);
-
-            SteamManager.Logger.Info("\t Number of players currently in lobby : " + numPlayers);
-            for(int i = 0; i < numPlayers; i++)
-            {
-                SteamManager.Logger.Info("\t Player(" + i + ") == " + SteamFriends.GetFriendPersonaName(SteamMatchmaking.GetLobbyMemberByIndex((CSteamID)current_lobbyID, i)));
-            }
+            GetCurrentLobbyMembers();
         }
+    }
+
+    public static List<CSteamID> GetCurrentLobbyMembers(bool log = true)
+    {
+        int numPlayers = SteamMatchmaking.GetNumLobbyMembers((CSteamID)Current_lobbyID);
+
+        if(log)
+            SteamManager.Logger.Info("\t Number of players currently in lobby : " + numPlayers);
+
+        List<CSteamID> ids = [];
+
+        for (int i = 0; i < numPlayers; i++)
+        {
+            var id = SteamMatchmaking.GetLobbyMemberByIndex((CSteamID)Current_lobbyID, i);
+
+            if(log)
+                SteamManager.Logger.Info("\t Player(" + i + ") == " + SteamFriends.GetFriendPersonaName(id));
+
+            ids.Add(id);
+        }
+
+        return ids;
     }
 
     static void OnLobbyCreated(LobbyCreated_t result)
@@ -59,7 +86,9 @@ public static class LobbyServer
             SteamManager.Logger.Info("Lobby created -- failure ...");
 
         string personalName = SteamFriends.GetPersonaName();
-        SteamMatchmaking.SetLobbyData((CSteamID)result.m_ulSteamIDLobby, "name", personalName + "'s Lobby");
+        var lobbyId = (CSteamID)result.m_ulSteamIDLobby;
+
+        SteamMatchmaking.SetLobbyData(lobbyId, "name", personalName + "'s Lobby");
     }
 
     static void OnGetLobbiesList(LobbyMatchList_t result)
@@ -88,10 +117,14 @@ public static class LobbyServer
 
     static void OnLobbyEntered(LobbyEnter_t result)
     {
-        current_lobbyID = result.m_ulSteamIDLobby;
+        Current_lobbyID = result.m_ulSteamIDLobby;
+
+        var members = GetCurrentLobbyMembers();
 
         if (result.m_EChatRoomEnterResponse == 1)
+        {
             SteamManager.Logger.Info("Lobby joined!");
+        }
         else
             SteamManager.Logger.Info("Failed to join lobby.");
     }

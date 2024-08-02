@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Generic;
+using Beebo.MultiplayerTest;
 using Jelly;
-using Microsoft.Xna.Framework.Input;
+
 using Steamworks;
 
-namespace Beebo.Multiplayer;
+namespace Beebo;
 
 public static class SteamManager
 {
@@ -13,8 +13,6 @@ public static class SteamManager
     public static AppId_t AppID => (AppId_t)steam_appid;
 
     public static Logger Logger { get; } = new("Steamworks.NET");
-
-    private static readonly List<LobbyMember> Players = [];
 
     public static bool IsSteamRunning { get; set; } = false;
 
@@ -79,11 +77,7 @@ public static class SteamManager
 
     public static void Update()
     {
-        if(Main.IsOnline && Input.GetDown(Keys.F1))
-        {
-            Main.IsClient = false;
-            SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePrivate, 4);
-        }
+        
     }
 
     private static void InitializeCallbacks()

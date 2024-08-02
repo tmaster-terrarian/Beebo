@@ -2,18 +2,17 @@ using System;
 using System.Collections.Generic;
 using Steamworks;
 
-namespace Beebo.Multiplayer;
+namespace Beebo.MultiplayerTest;
 
-public static class CommunicationManager
+public static class LobbyManager
 {
-    private static readonly Callback<P2PSessionRequest_t> Callback_NewConnection = Callback<P2PSessionRequest_t>.Create(OnNewConnection);
-    private static readonly Callback<LobbyChatUpdate_t> Callback_ConnectionChanged = Callback<LobbyChatUpdate_t>.Create(OnConnectionChanged);
+    private static Callback<P2PSessionRequest_t> Callback_NewConnection;
 
-    private static readonly List<LobbyMember> _lobbyMembers = [];
+    public static List<CSteamID> LobbyMembers { get; } = [];
 
     public static void InitializeCallbacks()
     {
-        SteamCallbacks.PersonaStateChange += OnPersonaStateChange;
+        Callback_NewConnection = Callback<P2PSessionRequest_t>.Create(OnNewConnection);
     }
 
     public static void Update()
@@ -34,7 +33,7 @@ public static class CommunicationManager
                 switch(TYPE)
                 {
                     case PacketType.ChatMessage:
-                        SteamManager.Logger.Info(_lobbyMembers[GetMemberIndex(steamIDRemote)].PersonaName + " says: " + msg);
+                        SteamManager.Logger.Info(SteamFriends.GetFriendPersonaName(steamIDRemote) + " says: " + msg);
                         break;
                     default:
                         SteamManager.Logger.Warn("Received an invalid packet with unknown type: " + (int)TYPE + ", value: '" + msg + "'");
@@ -46,18 +45,18 @@ public static class CommunicationManager
 
     static int GetMemberIndex(CSteamID id)
     {
-        for(int i = 0; i < _lobbyMembers.Count; i++)
+        for(int i = 0; i < LobbyMembers.Count; i++)
         {
-            if(_lobbyMembers[i].CSteamID == id) return i;
+            if(LobbyMembers[i] == id) return i;
         }
         return -1;
     }
 
     public static void NetBroadcast(PacketType TYPE, string message)
     {
-        for(int i = 0; i < _lobbyMembers.Count; i++)
+        for(int i = 0; i < LobbyMembers.Count; i++)
         {
-            if(_lobbyMembers[i].CSteamID == SteamUser.GetSteamID())
+            if(LobbyMembers[i] == SteamUser.GetSteamID())
                 continue;
 
             byte[] b_message = System.Text.Encoding.UTF8.GetBytes(message);
@@ -66,42 +65,20 @@ public static class CommunicationManager
             sendBytes[0] = (byte)TYPE;
             b_message.CopyTo(sendBytes, 1);
 
-            SteamNetworking.SendP2PPacket(_lobbyMembers[i].CSteamID, sendBytes, (uint)sendBytes.Length, EP2PSend.k_EP2PSendReliable);
+            SteamNetworking.SendP2PPacket(LobbyMembers[i], sendBytes, (uint)sendBytes.Length, EP2PSend.k_EP2PSendReliable);
         }
     }
 
     private static void OnNewConnection(P2PSessionRequest_t result)
     {
-        foreach(var member in _lobbyMembers)
+        foreach(var member in LobbyMembers)
         {
-            if(member.CSteamID == result.m_steamIDRemote)
+            if(member == result.m_steamIDRemote)
             {
                 SteamNetworking.AcceptP2PSessionWithUser(result.m_steamIDRemote);
                 return;
             }
         }
-    }
-
-    private static void OnConnectionChanged(LobbyChatUpdate_t result)
-    {
-        var mask = (EChatMemberStateChange)result.m_rgfChatMemberStateChange;
-
-        var UserChanged = (CSteamID)result.m_ulSteamIDUserChanged;
-        var MakingChange = (CSteamID)result.m_ulSteamIDMakingChange;
-
-        if((mask & EChatMemberStateChange.k_EChatMemberStateChangeEntered) != 0)
-        {
-            _lobbyMembers.Add(new(UserChanged, SteamFriends.GetPlayerNickname(UserChanged)));
-        }
-        else if((mask & (EChatMemberStateChange.k_EChatMemberStateChangeDisconnected | EChatMemberStateChange.k_EChatMemberStateChangeLeft)) != 0)
-        {
-            _lobbyMembers.RemoveAt(GetMemberIndex(UserChanged));
-        }
-    }
-
-    private static void OnPersonaStateChange(object? sender, PersonaStateChange_t pCallback)
-    {
-        
     }
 
     public static T[] SubArray<T>(T[] data, int index, int length)
@@ -114,5 +91,5 @@ public static class CommunicationManager
 
 public enum PacketType
 {
-    ChatMessage
+    ChatMessage = 1
 }
