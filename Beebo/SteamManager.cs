@@ -1,5 +1,4 @@
 using System;
-using Beebo.MultiplayerTest;
 using Beebo.Net;
 using Jelly;
 
@@ -47,49 +46,25 @@ public static class SteamManager
 
         IsSteamRunning = true;
 
-        InitializeCallbacks(); // We do this after SteamAPI.Init() has occured
-
-        // Logger.Info("Requesting Current Stats - " + SteamUserStats.RequestCurrentStats());
-
-        // Logger.Info("CurrentGameLanguage: " + SteamApps.GetCurrentGameLanguage());
-        // Logger.Info("PersonaName: " + SteamFriends.GetPersonaName());
+        Initialize();
 
         {
-            uint length = SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260);
-            Logger.Info("Steam AppInstallDir: " + length + " " + folder);
+            Logger.Info("Steam AppInstallDir: " + SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260) + " " + folder);
+            Logger.Info("ProgramPath: " + Main.ProgramPath.Length + " " + Main.ProgramPath);
         }
-
-        // Logger.Info("AppDir: " + Main.ProgramPath.Length + " " + Main.ProgramPath);
-
-        // SteamCallbacks.m_NumberOfCurrentPlayers.Set(SteamUserStats.GetNumberOfCurrentPlayers());
-        // Logger.Info("Requesting Number of Current Players");
-
-        // SteamCallbacks.m_CallResultFindLeaderboard.Set(SteamUserStats.FindLeaderboard("Quickest Win"));
-        // Logger.Info("Requesting Leaderboard");
 
         return true;
     }
 
     public static void Cleanup()
     {
+        P2PManager.LeaveLobby();
         Logger.Info("Shutting down Steam...");
         SteamAPI.Shutdown();
     }
 
-    public static void Update()
+    private static void Initialize()
     {
-        
-    }
-
-    private static void InitializeCallbacks()
-    {
-        // SteamCallbacks.Initialize();
         P2PManager.InitializeCallbacks();
     }
-}
-
-public enum ConnectionLostReason
-{
-    TooManyPlayers = 1000,
-    CancelledByClient = 1001
 }

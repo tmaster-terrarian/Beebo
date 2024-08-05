@@ -51,12 +51,13 @@ public class Main : Jelly.GameServer
     public static string SaveDataPath => new PathBuilder{AppendFinalSeparator = true}.Create(PathBuilder.LocalAppdataPath, AppMetadata.Name);
     public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
 
+    public static SpriteFont RegularFont { get; private set; }
+    public static SpriteFont RegularFontBold { get; private set; }
+
     readonly GraphicsDeviceManager _graphics;
     Camera camera;
 
     readonly bool steamFailed;
-    Texture2D? pfp;
-    string username;
 
     public ulong LobbyToJoin { get; set; } = 0;
 
@@ -156,10 +157,12 @@ public class Main : Jelly.GameServer
         {
             Renderer.LoadContent(Content);
 
+            RegularFont = Content.Load<SpriteFont>("Fonts/default");
+            RegularFontBold = Content.Load<SpriteFont>("Fonts/defaultBold");
+
             if(SteamManager.IsSteamRunning)
             {
-                pfp = GetSteamUserAvatar(GraphicsDevice, P2PManager.MyID);
-                username = SteamFriends.GetPersonaName();
+                // load content stuff for steam
             }
         }
     }
@@ -182,7 +185,6 @@ public class Main : Jelly.GameServer
         if(SteamManager.IsSteamRunning)
         {
             SteamAPI.RunCallbacks();
-            SteamManager.Update();
             P2PManager.ReadAvailablePackets();
         }
 
@@ -292,15 +294,15 @@ public class Main : Jelly.GameServer
         {
             Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(2, Renderer.ScreenSize.Y - 14, Renderer.ScreenSize.X - 4, 10), Color.Black * 0.5f);
 
-            float x = 4 - (Renderer.ScreenSize.X - MathHelper.Max(Renderer.ScreenSize.X, Renderer.RegularFont.MeasureString(chatInput).X));
-            Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, chatInput, new Vector2(x, Renderer.ScreenSize.Y - 13), Color.White, 4);
+            float x = 4 - (Renderer.ScreenSize.X - MathHelper.Max(Renderer.ScreenSize.X, RegularFont.MeasureString(chatInput).X));
+            Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, chatInput, new Vector2(x, Renderer.ScreenSize.Y - 13), Color.White, 4);
 
             for(int i = 0; i < 5; i++)
             {
                 int index = P2PManager.ChatHistory.Count - 1 - i;
                 if(index < 0) continue;
 
-                Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, P2PManager.ChatHistory[index], new Vector2(20, Renderer.ScreenSize.Y - 24 - (i * 10)), Color.White, 4);
+                Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, P2PManager.ChatHistory[index], new Vector2(20, Renderer.ScreenSize.Y - 24 - (i * 10)), Color.White, 4);
             }
         }
 
@@ -316,14 +318,14 @@ public class Main : Jelly.GameServer
                     var texture = GetSteamUserAvatar(member);
                     Renderer.SpriteBatch.Draw(texture, new Vector2(2 + (66 * i), 2), Color.White);
 
-                    Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, SteamFriends.GetFriendPersonaName(member), new Vector2(2 + (66 * i), 2) + Vector2.UnitY * 64, Color.White, 4);
+                    Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, SteamFriends.GetFriendPersonaName(member), new Vector2(2 + (66 * i), 2) + Vector2.UnitY * 64, Color.White, 4);
                 }
             }
 
             if(!ChatWindowOpen)
             {
-                Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
-                Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
+                Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
+                Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
             }
         }
 
@@ -337,7 +339,6 @@ public class Main : Jelly.GameServer
     {
         if(SteamManager.IsSteamRunning)
         {
-            P2PManager.LeaveLobby();
             SteamManager.Cleanup();
         }
     }
