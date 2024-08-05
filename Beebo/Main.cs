@@ -234,7 +234,7 @@ public class Main : Jelly.GameServer
         {
             if(Input.GetPressed(Keys.C))
             {
-                P2PManager.CreateLobby(ELobbyType.k_ELobbyTypePrivate);
+                P2PManager.CreateLobby(ELobbyType.k_ELobbyTypePublic);
             }
 
             if(Input.GetPressed(Keys.L))
@@ -263,8 +263,7 @@ public class Main : Jelly.GameServer
 
             if(Input.GetPressed(Keys.F1) && SteamFriends.GetPersonaName() == "bscit")
             {
-                const ulong dough = 76561198043785453; // :)
-                SteamMatchmaking.InviteUserToLobby(P2PManager.CurrentLobby, (CSteamID)dough);
+                SteamFriends.ActivateGameOverlayInviteDialog(P2PManager.CurrentLobby);
             }
         }
 
