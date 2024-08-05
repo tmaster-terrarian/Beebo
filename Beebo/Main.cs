@@ -41,7 +41,7 @@ public class Main : Jelly.GameServer
         MathHelper.Clamp(Mouse.GetState().Y / Renderer.PixelScale, 0, Renderer.ScreenSize.Y - 1)
     );
 
-    public static byte NetID => (byte)P2PManager.GetMemberIndex(P2PManager.MyID);
+    public static int NetID => P2PManager.GetMemberIndex(P2PManager.MyID);
     public static bool IsHost => P2PManager.GetLobbyOwner() == P2PManager.MyID;
 
     public static bool ChatWindowOpen { get; private set; } = false;
@@ -58,8 +58,6 @@ public class Main : Jelly.GameServer
     Camera camera;
 
     readonly bool steamFailed;
-
-    public ulong LobbyToJoin { get; set; } = 0;
 
     public Main() : base()
     {
@@ -139,13 +137,13 @@ public class Main : Jelly.GameServer
             SteamAPI.RunCallbacks();
 
             if(Server)
-                P2PManager.CreateLobby();
+                P2PManager.CreateLobby(ELobbyType.k_ELobbyTypePublic, 5);
             else
             {
-                if(LobbyToJoin != 0)
+                if(Program.LobbyToJoin != 0)
                 {
-                    P2PManager.JoinLobby(new CSteamID(LobbyToJoin));
-                    LobbyToJoin = 0;
+                    P2PManager.JoinLobby((CSteamID)Program.LobbyToJoin);
+                    Program.LobbyToJoin = 0;
                 }
             }
         }

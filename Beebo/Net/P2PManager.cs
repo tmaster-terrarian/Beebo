@@ -112,10 +112,10 @@ public static class P2PManager
         SendP2PPacket(target, type, System.Text.Encoding.UTF8.GetBytes(message), packetSendMethod);
     }
 
-    public static void CreateLobby(ELobbyType eLobbyType = ELobbyType.k_ELobbyTypePublic)
+    public static void CreateLobby(ELobbyType lobbyType = ELobbyType.k_ELobbyTypePublic, int maxPlayers = 4)
     {
         LeaveLobby();
-        SteamAPICall_t try_toHost = SteamMatchmaking.CreateLobby(eLobbyType, 4);
+        SteamAPICall_t try_toHost = SteamMatchmaking.CreateLobby(lobbyType, maxPlayers);
     }
 
     public static void JoinLobby(CSteamID steamIDLobby)
