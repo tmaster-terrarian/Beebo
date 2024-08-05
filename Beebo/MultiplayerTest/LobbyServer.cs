@@ -5,6 +5,7 @@ using Steamworks;
 
 namespace Beebo.MultiplayerTest;
 
+[System.Obsolete("Deprecated, use Beebo.Net.P2PManager")]
 public static class LobbyServer
 {
     public static Callback<LobbyCreated_t> Callback_lobbyCreated { get; private set; }
@@ -31,7 +32,6 @@ public static class LobbyServer
         {
             SteamManager.Logger.Info("Trying to create lobby ...");
             SteamAPICall_t try_toHost = SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypePrivate, 4);
-            Main.IsGameOwner = true;
         }
 
         // Command - List lobbies
@@ -46,7 +46,6 @@ public static class LobbyServer
         {
             SteamManager.Logger.Info("Trying to join FIRST listed lobby ...");
             SteamAPICall_t try_joinLobby = SteamMatchmaking.JoinLobby(SteamMatchmaking.GetLobbyByIndex(0));
-            Main.IsGameOwner = false;
         }
 
         // Command - List lobby members

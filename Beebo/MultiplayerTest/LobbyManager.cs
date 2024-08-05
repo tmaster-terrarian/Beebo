@@ -4,6 +4,7 @@ using Steamworks;
 
 namespace Beebo.MultiplayerTest;
 
+[Obsolete("Deprecated, use Beebo.Net.P2PManager")]
 public static class LobbyManager
 {
     private static Callback<P2PSessionRequest_t> Callback_NewConnection;
@@ -43,15 +44,6 @@ public static class LobbyManager
         }
     }
 
-    static int GetMemberIndex(CSteamID id)
-    {
-        for(int i = 0; i < LobbyMembers.Count; i++)
-        {
-            if(LobbyMembers[i] == id) return i;
-        }
-        return -1;
-    }
-
     public static void NetBroadcast(PacketType TYPE, string message)
     {
         for(int i = 0; i < LobbyMembers.Count; i++)
@@ -89,6 +81,7 @@ public static class LobbyManager
     }
 }
 
+[Obsolete("Deprecated, use Beebo.Net.PacketType")]
 public enum PacketType
 {
     ChatMessage = 1

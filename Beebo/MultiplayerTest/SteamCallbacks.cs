@@ -6,6 +6,7 @@ using Steamworks;
 
 namespace Beebo.MultiplayerTest;
 
+[Obsolete("Deprecated, use Beebo.Net.P2PManager")]
 public static class SteamCallbacks
 {
     public static Logger Logger => SteamManager.Logger;
@@ -25,9 +26,6 @@ public static class SteamCallbacks
                 Logger.Info("[" + UserStatsReceived_t.k_iCallback + " - UserStatsReceived] - " + pCallback.m_eResult + " -- " + pCallback.m_nGameID + " -- " + pCallback.m_steamIDUser);
             }
         );
-
-        LobbyManager.InitializeCallbacks();
-        LobbyServer.InitializeCallbacks();
     }
 
     private static void OnNumberOfCurrentPlayers(NumberOfCurrentPlayers_t pCallback, bool bIOFailure)
@@ -43,8 +41,5 @@ public static class SteamCallbacks
     private static void OnPersonaStateChange(PersonaStateChange_t pCallback)
     {
         Logger.Info("[" + PersonaStateChange_t.k_iCallback + " - PersonaStateChange] - " + pCallback.m_ulSteamID + " -- " + pCallback.m_nChangeFlags);
-        PersonaStateChange?.Invoke(null, pCallback);
     }
-
-    public static event EventHandler<PersonaStateChange_t> PersonaStateChange;
 }

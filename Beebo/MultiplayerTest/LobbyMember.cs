@@ -4,6 +4,7 @@ using Steamworks;
 
 namespace Beebo.MultiplayerTest;
 
+[System.Obsolete("Deprecated, use Beebo.Net.P2PManager")]
 public class LobbyMember(CSteamID id, string name = "unknown")
 {
     public CSteamID CSteamID { get; } = id;

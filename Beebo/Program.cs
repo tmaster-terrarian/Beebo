@@ -21,6 +21,14 @@ internal class Program
             {
                 UseSteamworks = true;
             }
+
+            if(list.Contains("+connect_lobby"))
+            {
+                int idx = list.IndexOf("+connect_lobby") + 1;
+
+                if(ulong.TryParse(list[idx], System.Globalization.NumberStyles.Integer, null, out ulong res))
+                    game.LobbyToJoin = res;
+            }
         }
 
         game.Run();
