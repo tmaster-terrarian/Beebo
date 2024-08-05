@@ -2,7 +2,7 @@
 
 internal class Program
 {
-    public static bool UseSteamworks { get; private set; }
+    public static bool UseSteamworks { get; private set; } = true;
 
     private static void Main(string[] args)
     {
@@ -17,9 +17,9 @@ internal class Program
                 game.Server = true;
             }
 
-            if(!list.Contains("-noSteam"))
+            if(list.Contains("-noSteam"))
             {
-                UseSteamworks = true;
+                UseSteamworks = false;
             }
 
             if(list.Contains("+connect_lobby"))

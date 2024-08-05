@@ -200,33 +200,18 @@ public class Main : Jelly.GameServer
             }
         }
 
-        if(Input.GetPressed(Keys.C))
+        if(ChatWindowOpen)
         {
-            P2PManager.CreateLobby(ELobbyType.k_ELobbyTypePrivate);
-        }
+            List<char> input = [..Input.GetTextInput()];
+            bool backspace = input.Remove('\x127');
 
-        if(Input.GetPressed(Keys.L))
-        {
-            if(Input.GetDown(Keys.LeftControl))
+            chatInput += string.Join(null, input);
+            chatInput = chatInput[..MathHelper.Min(chatInput.Length, 254)];
+
+            if(backspace && chatInput.Length > 0)
             {
-                P2PManager.LeaveLobby();
+                chatInput = chatInput[..^1];
             }
-            else
-            {
-                SteamManager.Logger.Info("Trying to get list of available lobbies ...");
-                SteamAPICall_t try_getList = SteamMatchmaking.RequestLobbyList();
-            }
-        }
-
-        if(Input.GetPressed(Keys.J))
-        {
-            SteamManager.Logger.Info("Trying to join FIRST listed lobby ...");
-            P2PManager.JoinLobby(SteamMatchmaking.GetLobbyByIndex(0));
-        }
-
-        if(Input.GetPressed(Keys.Q))
-        {
-            P2PManager.GetCurrentLobbyMembers(true);
         }
 
         if(Input.GetPressed(Keys.Enter))
@@ -234,22 +219,52 @@ public class Main : Jelly.GameServer
             ChatWindowOpen = !ChatWindowOpen;
             if(!ChatWindowOpen && chatInput.Length > 0)
             {
-                P2PManager.SendP2PPacketString(PacketType.ChatMessage, chatInput[..MathHelper.Max(chatInput.Length - 1, 254)], PacketDelivery.Reliable);
+                string name = SteamFriends.GetPersonaName();
+                string message = chatInput[..MathHelper.Min(chatInput.Length, 254)];
+
+                SteamManager.Logger.Info(name + " says: " + message);
+                P2PManager.ChatHistory.Add($"{name}: {message}");
+
+                P2PManager.SendP2PPacketString(PacketType.ChatMessage, message, PacketDelivery.Reliable);
                 chatInput = "";
             }
         }
 
-        if(ChatWindowOpen)
+        if(!ChatWindowOpen)
         {
-            List<char> input = [..Input.GetTextInput()];
-            bool backspace = input.Remove('\x127');
-
-            chatInput += string.Join(null, input);
-            chatInput = chatInput[..MathHelper.Max(chatInput.Length - 1, 254)];
-
-            if(backspace && chatInput.Length > 0)
+            if(Input.GetPressed(Keys.C))
             {
-                chatInput = chatInput[..^1];
+                P2PManager.CreateLobby(ELobbyType.k_ELobbyTypePrivate);
+            }
+
+            if(Input.GetPressed(Keys.L))
+            {
+                if(Input.GetDown(Keys.LeftControl))
+                {
+                    P2PManager.LeaveLobby();
+                }
+                else
+                {
+                    SteamManager.Logger.Info("Trying to get list of available lobbies ...");
+                    SteamAPICall_t try_getList = SteamMatchmaking.RequestLobbyList();
+                }
+            }
+
+            if(Input.GetPressed(Keys.J))
+            {
+                SteamManager.Logger.Info("Trying to join FIRST listed lobby ...");
+                P2PManager.JoinLobby(SteamMatchmaking.GetLobbyByIndex(0));
+            }
+
+            if(Input.GetPressed(Keys.Q))
+            {
+                P2PManager.GetCurrentLobbyMembers(true);
+            }
+
+            if(Input.GetPressed(Keys.F1) && SteamFriends.GetPersonaName() == "bscit")
+            {
+                const ulong dough = 76561198043785453; // :)
+                SteamMatchmaking.InviteUserToLobby(P2PManager.CurrentLobby, (CSteamID)dough);
             }
         }
 
@@ -279,7 +294,15 @@ public class Main : Jelly.GameServer
             Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(2, Renderer.ScreenSize.Y - 14, Renderer.ScreenSize.X - 4, 10), Color.Black * 0.5f);
 
             float x = 4 - (Renderer.ScreenSize.X - MathHelper.Max(Renderer.ScreenSize.X, Renderer.RegularFont.MeasureString(chatInput).X));
-            Renderer.SpriteBatch.DrawString(Renderer.RegularFont, chatInput, new Vector2(x, Renderer.ScreenSize.Y - 13), Color.White);
+            Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, chatInput, new Vector2(x, Renderer.ScreenSize.Y - 13), Color.White, 4);
+
+            for(int i = 0; i < 5; i++)
+            {
+                int index = P2PManager.ChatHistory.Count - 1 - i;
+                if(index < 0) continue;
+
+                Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, P2PManager.ChatHistory[index], new Vector2(20, Renderer.ScreenSize.Y - 24 - (i * 10)), Color.White, 4);
+            }
         }
 
         if(SteamManager.IsSteamRunning)
@@ -294,12 +317,15 @@ public class Main : Jelly.GameServer
                     var texture = GetSteamUserAvatar(member);
                     Renderer.SpriteBatch.Draw(texture, new Vector2(2 + (66 * i), 2), Color.White);
 
-                    Renderer.SpriteBatch.DrawString(Renderer.RegularFont, SteamFriends.GetFriendPersonaName(member), new Vector2(2 + (66 * i), 2) + Vector2.UnitY * 64, Color.White);
+                    Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, SteamFriends.GetFriendPersonaName(member), new Vector2(2 + (66 * i), 2) + Vector2.UnitY * 64, Color.White, 4);
                 }
             }
 
-            Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
-            Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
+            if(!ChatWindowOpen)
+            {
+                Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
+                Renderer.SpriteBatch.DrawStringSpacesFix(Renderer.RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
+            }
         }
 
         Renderer.EndDrawUI();

@@ -19,6 +19,8 @@ public static class P2PManager
 
     public static List<CSteamID> PublicLobbyList { get; } = [];
 
+    public static List<string> ChatHistory { get; } = [];
+
     public static void InitializeCallbacks()
     {
         Callback_P2PSessionRequest = Callback<P2PSessionRequest_t>.Create(OnNewConnection);
@@ -63,7 +65,11 @@ public static class P2PManager
                     }
                     case PacketType.ChatMessage:
                     {
-                        SteamManager.Logger.Info(SteamFriends.GetFriendPersonaName(steamIDRemote) + " says: " + dataString);
+                        string name = SteamFriends.GetFriendPersonaName(steamIDRemote);
+
+                        SteamManager.Logger.Info(name + " says: " + dataString);
+                        ChatHistory.Add($"{name}: {dataString}");
+
                         break;
                     }
                     default:
