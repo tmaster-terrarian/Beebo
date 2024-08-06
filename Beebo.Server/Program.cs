@@ -238,7 +238,6 @@ internal class Program
                 case "exit":
                     running = false;
                     process?.Kill();
-                    WaitForInput();
                     return;
                 case "help":
                     Console.WriteLine("List of available commands:");

@@ -10,7 +10,9 @@ public static class P2PManager
     private static Callback<LobbyCreated_t> Callback_lobbyCreated;
     private static Callback<LobbyMatchList_t> Callback_lobbyList;
     private static Callback<LobbyEnter_t> Callback_lobbyEnter;
-    private static Callback<LobbyDataUpdate_t> Callback_lobbyInfo;
+    private static Callback<LobbyDataUpdate_t> Callback_lobbyDataUpdate;
+    private static Callback<LobbyChatUpdate_t> Callback_lobbyChatUpdate;
+    private static Callback<PersonaStateChange_t> Callback_personaStateChange;
     private static Callback<GameLobbyJoinRequested_t> Callback_lobbyJoinRequested;
 
     public static bool InLobby { get; private set; }
@@ -27,7 +29,9 @@ public static class P2PManager
         Callback_lobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
         Callback_lobbyList = Callback<LobbyMatchList_t>.Create(OnGetLobbiesList);
         Callback_lobbyEnter = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
-        Callback_lobbyInfo = Callback<LobbyDataUpdate_t>.Create(OnGetLobbyInfo);
+        Callback_lobbyDataUpdate = Callback<LobbyDataUpdate_t>.Create(OnGetLobbyInfo);
+        Callback_lobbyChatUpdate = Callback<LobbyChatUpdate_t>.Create(OnLobbyChatUpdate);
+        Callback_personaStateChange = Callback<PersonaStateChange_t>.Create(OnPersonaStateChange);
         Callback_lobbyJoinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
     }
 
@@ -82,7 +86,7 @@ public static class P2PManager
         }
     }
 
-    public static void SendP2PPacket(PacketType type, byte[] message, PacketDelivery packetSendMethod = PacketDelivery.Reliable)
+    public static void SendP2PPacket(PacketType type, byte[] message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
     {
         for(int i = 0; i < SteamMatchmaking.GetNumLobbyMembers(CurrentLobby); i++)
         {
@@ -90,12 +94,12 @@ public static class P2PManager
         }
     }
 
-    public static void SendP2PPacketString(PacketType type, string message, PacketDelivery packetSendMethod = PacketDelivery.Reliable)
+    public static void SendP2PPacketString(PacketType type, string message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
     {
         SendP2PPacket(type, System.Text.Encoding.UTF8.GetBytes(message), packetSendMethod);
     }
 
-    public static void SendP2PPacket(CSteamID target, PacketType type, byte[] message, PacketDelivery packetSendMethod = PacketDelivery.Reliable)
+    public static void SendP2PPacket(CSteamID target, PacketType type, byte[] message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
     {
         if(target == MyID)
             return;
@@ -107,15 +111,15 @@ public static class P2PManager
         SteamNetworking.SendP2PPacket(target, sendBytes, (uint)sendBytes.Length, (EP2PSend)packetSendMethod);
     }
 
-    public static void SendP2PPacketString(CSteamID target, PacketType type, string message, PacketDelivery packetSendMethod = PacketDelivery.Reliable)
+    public static void SendP2PPacketString(CSteamID target, PacketType type, string message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
     {
         SendP2PPacket(target, type, System.Text.Encoding.UTF8.GetBytes(message), packetSendMethod);
     }
 
-    public static void CreateLobby(ELobbyType lobbyType = ELobbyType.k_ELobbyTypePublic, int maxPlayers = 4)
+    public static void CreateLobby(LobbyType lobbyType = LobbyType.Public, int maxPlayers = 4)
     {
         LeaveLobby();
-        SteamAPICall_t try_toHost = SteamMatchmaking.CreateLobby(lobbyType, maxPlayers);
+        SteamAPICall_t try_toHost = SteamMatchmaking.CreateLobby((ELobbyType)lobbyType, maxPlayers);
     }
 
     public static void JoinLobby(CSteamID steamIDLobby)
@@ -128,13 +132,19 @@ public static class P2PManager
     {
         if(InLobby)
         {
+            SteamManager.Logger.Info($"Leaving current lobby ({CurrentLobby.m_SteamID}) ...");
+
             if(Main.IsHost)
             {
                 var players = GetCurrentLobbyMembers();
                 if(players.Count > 1)
                 {
                     players.Remove(MyID);
-                    SteamMatchmaking.SetLobbyOwner(CurrentLobby, players[0]);
+                    var newOwner = players[0];
+
+                    SteamManager.Logger.Info($"Transferring lobby ownership to {SteamFriends.GetFriendPersonaName(newOwner)} ({newOwner})");
+
+                    SteamMatchmaking.SetLobbyOwner(CurrentLobby, newOwner);
                 }
             }
 
@@ -147,6 +157,8 @@ public static class P2PManager
             SteamMatchmaking.LeaveLobby(CurrentLobby);
             CurrentLobby = CSteamID.Nil;
             InLobby = false;
+
+            SteamManager.Logger.Info($"Lobby left!");
         }
     }
 
@@ -210,9 +222,47 @@ public static class P2PManager
         {
             if(PublicLobbyList[i].m_SteamID == result.m_ulSteamIDLobby)
             {
-                SteamManager.Logger.Info("Lobby " + i + " :: " + SteamMatchmaking.GetLobbyData((CSteamID)PublicLobbyList[i].m_SteamID, "name"));
+                var name = SteamMatchmaking.GetLobbyData((CSteamID)PublicLobbyList[i].m_SteamID, "name");
+                if(name != "")
+                    SteamManager.Logger.Info($"Lobby {i} :: {name}");
                 return;
             }
+        }
+    }
+
+    private static void OnLobbyChatUpdate(LobbyChatUpdate_t result)
+    {
+        if(result.m_ulSteamIDLobby == CurrentLobby.m_SteamID)
+        {
+            var state = (ChatMemberStateChange)result.m_rgfChatMemberStateChange;
+            var idChanged = (CSteamID)result.m_ulSteamIDUserChanged;
+            var idMakingChange = (CSteamID)result.m_ulSteamIDUserChanged;
+
+            if(idChanged.m_SteamID == idMakingChange.m_SteamID)
+            {
+                if((state & ChatMemberStateChange.Entered) != 0)
+                {
+                    if(SteamFriends.RequestUserInformation(idChanged, false))
+                    {
+                        Main.AlreadyLoadedAvatars.Remove(idChanged);
+                        Main.AlreadyLoadedAvatars.Add(idChanged, Main.DefaultSteamProfile);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void OnPersonaStateChange(PersonaStateChange_t result)
+    {
+        var id = (CSteamID)result.m_ulSteamID;
+
+        if(GetMemberIndex(id) == -1)
+            return;
+
+        if((result.m_nChangeFlags & EPersonaChange.k_EPersonaChangeAvatar) != 0)
+        {
+            Main.AlreadyLoadedAvatars.Remove(id);
+            Main.GetMediumSteamAvatar(id);
         }
     }
 

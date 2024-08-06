@@ -61,8 +61,8 @@
 			}
 		},
 
-		"iguina": {
-			"path": "UI/*",
+		"bin": {
+			"path": "*.bin",
 			"recursive": "True",
 			"action": "copy"
 		}
