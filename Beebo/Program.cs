@@ -59,7 +59,14 @@ internal class Program
             }
         }
 
-        game.Run();
+        try
+        {
+            game.Run();
+        }
+        catch(Exception e)
+        {
+            Console.Error.WriteLine(e);
+        }
     }
 
     private static void Log(object sender, Jelly.IO.TextWriterEventArgs callback)

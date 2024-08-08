@@ -130,15 +130,13 @@ public class Main : Jelly.GameServer
 
             if(SteamManager.IsSteamRunning)
             {
-                _missingProfile = new Texture2D(GraphicsDevice, 64, 64, false, SurfaceFormat.Color);
-
                 var binReader = File.OpenRead(Path.Combine(ProgramPath, "Content", "Images", "UI", "Multiplayer", "MissingProfile.bin"));
                 byte[] buffer = new byte[64 * 64 * 4];
 
                 binReader.Read(buffer, 0, buffer.Length);
                 binReader.Dispose();
 
-                _missingProfile.SetData(buffer);
+                (_missingProfile = new Texture2D(GraphicsDevice, 64, 64, false, SurfaceFormat.Color)).SetData(buffer);
             }
         }
     }

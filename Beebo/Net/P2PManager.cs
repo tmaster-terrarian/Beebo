@@ -17,7 +17,7 @@ public static class P2PManager
 
     public static bool InLobby { get; private set; }
     public static CSteamID CurrentLobby { get; private set; }
-    public static CSteamID MyID => SteamUser.GetSteamID();
+    public static CSteamID MyID { get; } = SteamUser.GetSteamID();
 
     public static List<CSteamID> PublicLobbyList { get; } = [];
 
