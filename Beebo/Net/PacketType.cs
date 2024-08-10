@@ -1,9 +1,16 @@
 namespace Beebo.Net;
 
-public enum PacketType
+public enum PacketType : byte
 {
-    FirstJoinSyncRequest,
-    FirstJoinSync,
-    Sync,
+    FirstJoin,
+    JellySync,
     ChatMessage,
+    ChatMessage2,
+    SceneChange,
+}
+
+public enum FirstJoinPacketType : byte
+{
+    SyncRequest,
+    Sync
 }
