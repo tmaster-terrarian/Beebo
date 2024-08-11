@@ -1,3 +1,4 @@
+using Jelly;
 using Jelly.Net;
 
 namespace Beebo.Net;
@@ -8,10 +9,7 @@ public class BeeboNetworkProvider : NetworkProvider
 
     public override bool IsHost => Main.IsHost;
 
-    public override int GetNetID()
-    {
-        return Main.NetID;
-    }
+    public override int GetNetID() => Main.NetID;
 
     public override int GetHostNetID()
     {

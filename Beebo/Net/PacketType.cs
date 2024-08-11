@@ -7,10 +7,17 @@ public enum PacketType : byte
     ChatMessage,
     ChatMessage2,
     SceneChange,
+    CallbackRequest,
+    CallbackResponse,
 }
 
 public enum FirstJoinPacketType : byte
 {
     SyncRequest,
     Sync
+}
+
+public enum CallbackPacketType : byte
+{
+    SceneChange
 }

@@ -29,29 +29,23 @@
 				"TextureFormat": "Color"
 			}
 		},
-		// "sfx": {
-		// 	"path": "Audio/Sfx/*.wav",
-		// 	"recursive": "True",
-		// 	"action": "build",
-		// 	"importer": "WavImporter",
-		// 	"processor": "SoundEffectProcessor",
-		// 	"processorParam": {
-		// 		"Quality": "Best"
-		// 	}
-		// },
+		"audio": {
+			"path": "Audio/*.wav",
+			"recursive": "True",
+			"action": "build",
+			"importer": "WavImporter",
+			"processor": "SoundEffectProcessor",
+			"processorParam": {
+				"Quality": "Best"
+			}
+		},
 		"levels": {
-			"path": "Levels/*.ldtk",
+			"path": "Levels/*.json",
 			"recursive": "True",
 			"action": "copy"
 		},
-		"levelTextures": {
-			"path": "Levels/*.png",
-			"recursive": "True",
-			"action": "copy"
-		},
-
-		"FX": {
-			"path": "FX/*.fx",
+		"effects": {
+			"path": "Effects/*.fx",
 			"recursive": "True",
 			"action": "build",
 			"importer": "EffectImporter",
@@ -60,7 +54,6 @@
 				"Debug": "Auto"
 			}
 		},
-
 		"bin": {
 			"path": "*.bin",
 			"recursive": "True",

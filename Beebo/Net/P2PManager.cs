@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using Beebo.GameContent;
+using Jelly.GameContent;
 using Microsoft.Xna.Framework;
 using Steamworks;
 
@@ -19,6 +21,8 @@ public static class P2PManager
     public static bool InLobby { get; private set; }
     public static CSteamID CurrentLobby { get; private set; }
     public static CSteamID MyID { get; } = SteamUser.GetSteamID();
+
+    public static int PlayerCount => InLobby ? SteamMatchmaking.GetNumLobbyMembers(CurrentLobby) : 1;
 
     public static List<CSteamID> PublicLobbyList { get; } = [];
 
@@ -48,13 +52,13 @@ public static class P2PManager
                 PacketType TYPE = (PacketType)packet[0];
                 byte[] data = packet[1..];
 
-                string dataString = System.Text.Encoding.UTF8.GetString(data);
+                string dataString = data.ToStringUTF8();
 
                 switch(TYPE)
                 {
                     case PacketType.FirstJoin:
                     {
-                        switch((FirstJoinPacketType)packet[1])
+                        switch((FirstJoinPacketType)data[0])
                         {
                             case FirstJoinPacketType.SyncRequest:
                             {
@@ -80,7 +84,7 @@ public static class P2PManager
                         // set the part of the game state from data owned by the sender
                         // first byte is a Jelly.Net.SyncPacketType value
 
-                        Jelly.Providers.RaisePacketReceivedEvent(data);
+                        Jelly.Providers.NetworkProvider.RaisePacketReceivedEvent(data);
 
                         break;
                     }
@@ -92,6 +96,38 @@ public static class P2PManager
                     case PacketType.ChatMessage2:
                     {
                         WriteChatMessage(dataString, steamIDRemote, true);
+                        break;
+                    }
+                    case PacketType.SceneChange:
+                    {
+                        Main.ChangeScene(dataString);
+                        Main.WaitingForAllReady = true;
+                        SendP2PPacket(steamIDRemote, PacketType.CallbackRequest, [(byte)CallbackPacketType.SceneChange], PacketSendMethod.Reliable);
+                        break;
+                    }
+                    case PacketType.CallbackRequest:
+                    {
+                        switch((CallbackPacketType)data[0])
+                        {
+                            case CallbackPacketType.SceneChange:
+                            {
+                                Main.PlayerReady(steamIDRemote);
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case PacketType.CallbackResponse:
+                    {
+                        switch((CallbackPacketType)data[0])
+                        {
+                            case CallbackPacketType.SceneChange:
+                            {
+                                Main.WaitingForAllReady = false;
+                                Main.Scene?.Begin();
+                                break;
+                            }
+                        }
                         break;
                     }
                     default:
@@ -167,10 +203,6 @@ public static class P2PManager
             SteamManager.Logger.Info($"Leaving current lobby ({CurrentLobby.m_SteamID}) ...");
             HandleLobbyOwnerLeft();
 
-            string message = $"{SteamFriends.GetPersonaName()} left.";
-            WriteChatMessage(message, MyID, true);
-            SendP2PPacketString(PacketType.ChatMessage2, message, PacketSendMethod.Reliable);
-
             foreach (var id in GetCurrentLobbyMembers())
             {
                 if (id != MyID)
@@ -221,7 +253,7 @@ public static class P2PManager
         if(!InLobby)
             return [];
 
-        int numPlayers = SteamMatchmaking.GetNumLobbyMembers(CurrentLobby);
+        int numPlayers = PlayerCount;
 
         if(log)
             SteamManager.Logger.Info("\t Number of players currently in lobby: " + numPlayers);
@@ -292,42 +324,37 @@ public static class P2PManager
             var idChanged = (CSteamID)result.m_ulSteamIDUserChanged;
             var idMakingChange = (CSteamID)result.m_ulSteamIDUserChanged;
 
-            if(idChanged.m_SteamID == idMakingChange.m_SteamID)
+            string message = "???";
+
+            if((state & ChatMemberStateChange.Entered) == ChatMemberStateChange.Entered)
             {
-                if((state & ChatMemberStateChange.Entered) == ChatMemberStateChange.Entered)
+                if(SteamFriends.RequestUserInformation(idChanged, false))
                 {
-                    if(SteamFriends.RequestUserInformation(idChanged, false))
-                    {
-                        Main.AlreadyLoadedAvatars.Remove(idChanged);
-                        Main.AlreadyLoadedAvatars.Add(idChanged, Main.DefaultSteamProfile);
-                    }
+                    Main.AlreadyLoadedAvatars.Remove(idChanged);
+                    Main.AlreadyLoadedAvatars.Add(idChanged, Main.DefaultSteamProfile);
                 }
+
+                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} joined.";
             }
-            else
+            if((state & ChatMemberStateChange.Left) == ChatMemberStateChange.Left)
             {
-                bool disconnected = (state & ChatMemberStateChange.Disconnected) == ChatMemberStateChange.Disconnected;
-                bool kicked = (state & ChatMemberStateChange.Kicked) == ChatMemberStateChange.Kicked;
-                bool banned = (state & ChatMemberStateChange.Banned) == ChatMemberStateChange.Banned;
-
-                if(disconnected || kicked || banned)
-                {
-                    if(InLobby)
-                    {
-                        if(disconnected)
-                        {
-                            HandleLobbyOwnerLeft();
-                        }
-
-                        foreach(var id in GetCurrentLobbyMembers())
-                        {
-                            if(id != MyID)
-                                SteamNetworking.CloseP2PSessionWithUser(id);
-                        }
-
-                        ChatHistory.Clear();
-                    }
-                }
+                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} left.";
             }
+            if((state & ChatMemberStateChange.Disconnected) == ChatMemberStateChange.Disconnected)
+            {
+                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} lost connection.";
+            }
+            if((state & ChatMemberStateChange.Kicked) == ChatMemberStateChange.Kicked)
+            {
+                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} was kicked from the lobby by {SteamFriends.GetFriendPersonaName(idMakingChange)}.";
+            }
+            if((state & ChatMemberStateChange.Banned) == ChatMemberStateChange.Banned)
+            {
+                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} was banned from the lobby by {SteamFriends.GetFriendPersonaName(idMakingChange)}.";
+            }
+
+            WriteChatMessage(message, idChanged, true);
+            SendP2PPacketString(PacketType.ChatMessage2, message, PacketSendMethod.Reliable);
         }
     }
 
