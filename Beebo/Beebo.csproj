@@ -38,19 +38,22 @@
   <ItemGroup>
     <Reference Include="Steamworks.NET, Version=20.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>bin/Steamworks.NET.dll</HintPath>
+      <HintPath>Steamworks.NET.dll</HintPath>
     </Reference>
     <Reference Include="LDtkMonogame, Version=1.0.0">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>bin/LDtkMonogame.dll</HintPath>
+      <HintPath>LDtkMonogame.dll</HintPath>
     </Reference>
     <Reference Include="LDtk.ContentPipeline, Version=1.0.0">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>bin/LDtk.ContentPipeline.dll</HintPath>
+      <HintPath>LDtk.ContentPipeline.dll</HintPath>
     </Reference>
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="steam_api64.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="steam_appid.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
