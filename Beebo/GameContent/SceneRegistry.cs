@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
+using System.Text.Json.Serialization.Metadata;
+using Beebo.GameContent.Components;
 using Jelly;
 using Jelly.Components;
 using Jelly.GameContent;
@@ -26,6 +27,8 @@ public class SceneRegistry : Registry<SceneDef>
         WriteIndented = true,
         ReferenceHandler = ReferenceHandler.IgnoreCycles,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        UnknownTypeHandling = JsonUnknownTypeHandling.JsonNode,
+        TypeInfoResolver = ComponentRegistry.TypeResolver,
     };
 
     public static Dictionary<string, SceneDef> DefsByName { get; } = [];
@@ -38,15 +41,18 @@ public class SceneRegistry : Registry<SceneDef>
         {
             Name = "Test",
             Entities = [
-                new Entity(new(0, 0))
+                new EntityDef()
                 {
+                    Position = new(0, 0),
                     Enabled = true,
                     Visible = true,
+                    Components = [
+                        new SpriteComponent(),
+                        new TestComponent(),
+                    ],
                 }
             ]
         };
-
-        test.Entities[0].Add(new SpriteComponent());
 
         Main.Logger.Info(JsonSerializer.Serialize(title, SerializerOptions));
         Main.Logger.Info(JsonSerializer.Serialize(test, SerializerOptions));

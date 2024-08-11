@@ -7,7 +7,7 @@ namespace Beebo.GameContent;
 
 public class SceneDef : ContentDef
 {
-    public IList<Entity>? Entities { get; set; }
+    public IList<EntityDef>? Entities { get; set; }
 
     public Scene Build()
     {
@@ -18,7 +18,7 @@ public class SceneDef : ContentDef
 
         foreach(var e in Entities ?? [])
         {
-            scene.Entities.Add(e);
+            scene.Entities.Add(e.Build());
         }
 
         return scene;

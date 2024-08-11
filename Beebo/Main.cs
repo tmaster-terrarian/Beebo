@@ -140,6 +140,7 @@ public class Main : Jelly.GameServer
             }
         }
 
+        Registries.AddRegistry(new ComponentRegistry());
         Registries.AddRegistry(new SceneRegistry());
 
         Providers.Initialize(new BeeboNetworkProvider(), new BasicContentProvider());
