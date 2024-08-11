@@ -7,38 +7,55 @@
     <TieredCompilation>false</TieredCompilation>
     <LanguageVersion>12.0</LanguageVersion>
   </PropertyGroup>
+
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
+
   <ItemGroup>
     <None Remove="Icon.ico" />
     <None Remove="Icon.bmp" />
   </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="Icon.ico" />
     <EmbeddedResource Include="Icon.bmp" />
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.1.988-develop" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.1.988-develop" />
     <!-- <PackageReference Include="MonoGame.Primitives2D" Version="1.1.1" /> --> <!-- unused for now -->
     <PackageReference Include="Nopipeline.Task" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../Beebo.Server/Beebo.Server.csproj" />
     <ProjectReference Include="../Jelly/Jelly.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="Steamworks.NET, Version=20.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Steamworks.NET.dll</HintPath>
+      <HintPath>bin/Steamworks.NET.dll</HintPath>
+    </Reference>
+    <Reference Include="LDtkMonogame, Version=1.0.0">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin/LDtkMonogame.dll</HintPath>
+    </Reference>
+    <Reference Include="LDtk.ContentPipeline, Version=1.0.0">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin/LDtk.ContentPipeline.dll</HintPath>
     </Reference>
   </ItemGroup>
+
   <ItemGroup>
-    <Content Include="steam_api64.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="steam_appid.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
   <Target Name="RestoreDotnetTools" BeforeTargets="Restore">
     <Message Text="Restoring dotnet tools" Importance="High" />
     <Exec Command="dotnet tool restore" />

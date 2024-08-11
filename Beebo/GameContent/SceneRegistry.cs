@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
 using Jelly;
 using Jelly.Components;
 using Jelly.GameContent;
@@ -38,6 +39,10 @@ public class SceneRegistry : Registry<SceneDef>
             Name = "Test",
             Entities = [
                 new Entity(new(0, 0))
+                {
+                    Enabled = true,
+                    Visible = true,
+                }
             ]
         };
 
