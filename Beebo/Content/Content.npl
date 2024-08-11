@@ -1,5 +1,4 @@
 {
-	"root": "../Content/",
 	"references": [],
 	"content": {
 		"textures": {
@@ -54,8 +53,8 @@
 				"Debug": "Auto"
 			}
 		},
-		"bin": {
-			"path": "*.bin",
+		"colorArray": {
+			"path": "Images/*.bin",
 			"recursive": "True",
 			"action": "copy"
 		}
