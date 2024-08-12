@@ -73,7 +73,7 @@ public static class P2PManager
                                         (byte)FirstJoinPacketType.Sync,
                                         .. Main.GetSyncPacket()
                                     ],
-                                    PacketSendMethod.Reliable
+                                    PacketSendMethod.ReliableWithBuffering
                                 );
 
                                 break;
