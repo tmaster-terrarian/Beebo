@@ -49,10 +49,13 @@ public class SceneRegistry : Registry<SceneDef>
                     Components = [
                         new SpriteComponent(),
                         new TestComponent(),
+                        new TestComponent2(),
                     ],
                 }
             ]
         };
+
+        Register(test);
 
         Main.Logger.Info(JsonSerializer.Serialize(title, SerializerOptions));
         Main.Logger.Info(JsonSerializer.Serialize(test, SerializerOptions));

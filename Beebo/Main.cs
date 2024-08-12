@@ -306,7 +306,7 @@ public class Main : Jelly.GameServer
 
             if(Input.GetPressed(Keys.F2) && P2PManager.InLobby && IsHost)
             {
-                ChangeScene("Title", true);
+                ChangeScene("Test", true);
             }
         }
 
@@ -418,6 +418,7 @@ public class Main : Jelly.GameServer
         {
             case ReadinessReason.WaitForSceneLoad:
             {
+                Logger.Info("All players have finished loading, beginning scene");
                 P2PManager.SendP2PPacket(PacketType.CallbackResponse, [(byte)CallbackPacketType.SceneChange], PacketSendMethod.Reliable);
                 scene?.Begin();
                 break;
@@ -456,9 +457,11 @@ public class Main : Jelly.GameServer
             _playersConfirmed = 0;
             WaitingForAllReady = true;
             GlobalCoroutineRunner.Run(nameof(WaitForConfirmation), WaitForConfirmation(ReadinessReason.WaitForSceneLoad));
+            Logger.Info("Waiting for everyone to load...");
         }
         else
         {
+            WaitingForAllReady = false;
             scene?.Begin();
         }
     }
@@ -472,6 +475,7 @@ public class Main : Jelly.GameServer
             scene?.End();
             scene = nextScene;
             OnSceneTransition(lastScene, nextScene);
+            Logger.Info($"Loaded scene {newScene.Name}");
             return true;
         }
         return false;

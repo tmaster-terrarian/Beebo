@@ -112,6 +112,7 @@ public static class P2PManager
                             case CallbackPacketType.SceneChange:
                             {
                                 Main.PlayerReady(steamIDRemote);
+                                Main.Logger.Info($"{SteamFriends.GetFriendPersonaName(steamIDRemote)} ({steamIDRemote}) has loaded");
                                 break;
                             }
                         }
@@ -123,6 +124,7 @@ public static class P2PManager
                         {
                             case CallbackPacketType.SceneChange:
                             {
+                                Main.Logger.Info("All players have finished loading, beginning scene");
                                 Main.WaitingForAllReady = false;
                                 Main.Scene?.Begin();
                                 break;

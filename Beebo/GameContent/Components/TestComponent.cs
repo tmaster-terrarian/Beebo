@@ -7,7 +7,7 @@ public class TestComponent : Component
     public string TestMessage { get; set; } = "Hello World!";
 }
 
-public class TestComponent2 : Component
+public class TestComponent2 : TestComponent
 {
     public int Num { get; set; }
 }
