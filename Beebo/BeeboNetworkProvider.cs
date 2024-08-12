@@ -1,7 +1,9 @@
+using Beebo.Net;
+
 using Jelly;
 using Jelly.Net;
 
-namespace Beebo.Net;
+namespace Beebo;
 
 public class BeeboNetworkProvider : NetworkProvider
 {

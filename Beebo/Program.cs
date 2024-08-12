@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using Steamworks;
 
 internal class Program
 {
@@ -29,10 +30,10 @@ internal class Program
         _consoleOut.OnWriteLineFormatted += LogLineFormatted;
 
         _consoleError = new(oldError);
-        _consoleError.OnWrite += Error;
-        _consoleError.OnWriteFormatted += ErrorFormatted;
-        _consoleError.OnWriteLine += ErrorLine;
-        _consoleError.OnWriteLineFormatted += ErrorLineFormatted;
+        _consoleError.OnWrite += Log;
+        _consoleError.OnWriteFormatted += LogFormatted;
+        _consoleError.OnWriteLine += LogLine;
+        _consoleError.OnWriteLineFormatted += LogLineFormatted;
 
         Console.SetOut(_consoleOut);
         Console.SetError(_consoleError);
@@ -72,54 +73,68 @@ internal class Program
     private static void Log(object sender, Jelly.IO.TextWriterEventArgs callback)
     {
         if(callback.Value is char[] buffer)
+        {
             LogFile.Write(buffer, callback.Index ?? 0, callback.Count ?? buffer.Length);
+
+            if(Beebo.Main.Debug.Enabled)
+            {
+                int i = callback.Index ?? 0;
+                int i2 = i + (callback.Count ?? buffer.Length) - 1;
+                Beebo.Net.P2PManager.WriteChatMessage(string.Concat(buffer[i..i2]), CSteamID.Nil, true, true);
+            }
+        }
         else
+        {
             LogFile.Write(callback.Value);
+
+            if(Beebo.Main.Debug.Enabled)
+            {
+                Beebo.Net.P2PManager.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
+            }
+        }
     }
 
     private static void LogFormatted(object sender, Jelly.IO.TextWriterFormattedEventArgs callback)
     {
         LogFile.Write(callback.Format, callback.Arg);
+
+        if(Beebo.Main.Debug.Enabled)
+        {
+            Beebo.Net.P2PManager.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
+        }
     }
 
     private static void LogLine(object sender, Jelly.IO.TextWriterEventArgs callback)
     {
         if(callback.Value is char[] buffer)
+        {
             LogFile.WriteLine(buffer, callback.Index ?? 0, callback.Count ?? buffer.Length);
+
+            if(Beebo.Main.Debug.Enabled)
+            {
+                int i = callback.Index ?? 0;
+                int i2 = i + (callback.Count ?? buffer.Length) - 1;
+                Beebo.Net.P2PManager.WriteChatMessage(string.Concat(buffer[i..i2]), CSteamID.Nil, true, true);
+            }
+        }
         else
+        {
             LogFile.WriteLine(callback.Value);
+
+            if(Beebo.Main.Debug.Enabled)
+            {
+                Beebo.Net.P2PManager.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
+            }
+        }
     }
 
     private static void LogLineFormatted(object sender, Jelly.IO.TextWriterFormattedEventArgs callback)
     {
         LogFile.WriteLine(callback.Format, callback.Arg);
-    }
 
-    // these duplicates exist because for some reason it doesn't work otherwise
-
-    private static void Error(object sender, Jelly.IO.TextWriterEventArgs callback)
-    {
-        if(callback.Value is char[] buffer)
-            LogFile.Write(buffer, callback.Index ?? 0, callback.Count ?? buffer.Length);
-        else
-            LogFile.Write(callback.Value);
-    }
-
-    private static void ErrorFormatted(object sender, Jelly.IO.TextWriterFormattedEventArgs callback)
-    {
-        LogFile.Write(callback.Format, callback.Arg);
-    }
-
-    private static void ErrorLine(object sender, Jelly.IO.TextWriterEventArgs callback)
-    {
-        if(callback.Value is char[] buffer)
-            LogFile.WriteLine(buffer, callback.Index ?? 0, callback.Count ?? buffer.Length);
-        else
-            LogFile.WriteLine(callback.Value);
-    }
-
-    private static void ErrorLineFormatted(object sender, Jelly.IO.TextWriterFormattedEventArgs callback)
-    {
-        LogFile.WriteLine(callback.Format, callback.Arg);
+        if(Beebo.Main.Debug.Enabled)
+        {
+            Beebo.Net.P2PManager.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
+        }
     }
 }

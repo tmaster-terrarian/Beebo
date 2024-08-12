@@ -1,67 +1,34 @@
 using System;
-using System.Text.Json.Serialization;
 
+using Jelly;
 using Jelly.GameContent;
 
 namespace Beebo.GameContent;
 
 public class ComponentDef : ContentDef
 {
-    [JsonIgnore] public Type ComponentType { get; private set; }
+    public Type ComponentType { get; private set; }
 
     private ComponentDef()
     {
         
     }
 
-    public static ComponentDef Create<T>() where T : Jelly.Component
+    public static ComponentDef Create<T>() where T : Component
     {
-        var def = new ComponentDef
-        {
-            ComponentType = typeof(T)
-        };
-
-        // PropertyDescriptorCollection properties;
-
-        // AssociatedMetadataTypeTypeDescriptionProvider typeDescriptionProvider;
-
-        // properties = TypeDescriptor.GetProperties(typeof(Jelly.Component));
-        // Console.WriteLine(properties[0].Attributes.Count);
-
-        // typeDescriptionProvider = new AssociatedMetadataTypeTypeDescriptionProvider(
-        //     typeof(Jelly.Component),
-        //     typeof(T));
-
-        // TypeDescriptor.AddProviderTransparent(typeDescriptionProvider, typeof(Jelly.Component));
-
-        // properties = TypeDescriptor.GetProperties(typeof(Jelly.Component));
-        // Console.WriteLine(properties[0].Attributes.Count);
-
-        return def;
+        return Create(typeof(T));
     }
 
     public static ComponentDef Create(Type type)
     {
+        ArgumentNullException.ThrowIfNull(type);
+
+        if(!type.IsSubclassOf(typeof(Component))) throw new InvalidCastException($"{type.Name} is not a subclass of Component");
+
         var def = new ComponentDef
         {
             ComponentType = type
         };
-
-        // PropertyDescriptorCollection properties;
-
-        // AssociatedMetadataTypeTypeDescriptionProvider typeDescriptionProvider;
-
-        // properties = TypeDescriptor.GetProperties(typeof(Jelly.Component));
-        // Console.WriteLine(properties[0].Attributes.Count);
-
-        // typeDescriptionProvider = new AssociatedMetadataTypeTypeDescriptionProvider(
-        //     typeof(Jelly.Component),
-        //     typeof(T));
-
-        // TypeDescriptor.AddProviderTransparent(typeDescriptionProvider, typeof(Jelly.Component));
-
-        // properties = TypeDescriptor.GetProperties(typeof(Jelly.Component));
-        // Console.WriteLine(properties[0].Attributes.Count);
 
         return def;
     }

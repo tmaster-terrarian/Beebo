@@ -4,7 +4,9 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+
 using Beebo.GameContent.Components;
+
 using Jelly;
 using Jelly.Components;
 using Jelly.GameContent;
@@ -47,10 +49,12 @@ public class SceneRegistry : Registry<SceneDef>
                     Enabled = true,
                     Visible = true,
                     Components = [
-                        new SpriteComponent(),
+                        new SpriteComponent {
+                            TexturePath = "Images/UI/Multiplayer/DefaultProfileOld"
+                        },
                         new TestComponent(),
-                        new TestComponent2(),
-                    ],
+                        new TestComponent2()
+                    ]
                 }
             ]
         };

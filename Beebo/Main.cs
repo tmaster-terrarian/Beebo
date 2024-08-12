@@ -22,14 +22,14 @@ namespace Beebo;
 
 public class Main : Jelly.GameServer
 {
-    private static Main _instance = null;
-
     private static Scene scene;
     private static Scene nextScene;
 
     private static int _playersConfirmed = 0;
 
     private static Texture2D _missingProfile;
+
+    internal static Main Instance { get; private set; } = null;
 
     public static Logger Logger { get; } = new("Main");
 
@@ -72,7 +72,7 @@ public class Main : Jelly.GameServer
     public static bool ChatWindowOpen { get; private set; } = false;
     public static string ChatInput { get; private set; } = "";
 
-    public static bool PlayerControlsDisabled => ChatWindowOpen || _instance.Server || !_instance.IsActive;
+    public static bool PlayerControlsDisabled => ChatWindowOpen || Instance.Server || !Instance.IsActive;
 
     public static string SaveDataPath => new PathBuilder{AppendFinalSeparator = true}.Create(PathBuilder.LocalAppdataPath, AppMetadata.Name);
     public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
@@ -87,11 +87,22 @@ public class Main : Jelly.GameServer
 
     private readonly bool steamFailed;
 
+    private static bool debugEnabled;
+
+    public static class Debug
+    {
+        public static bool Enabled => debugEnabled;
+    }
+
     public Main() : base()
     {
-        if(_instance is not null) throw new Exception("You can't start the game more than once 4head");
+        if(Instance is not null) throw new Exception("You can't start the game more than once 4head");
 
-        _instance = this;
+        Instance = this;
+
+        #if DEBUG
+        debugEnabled = true;
+        #endif
 
         _graphics = new GraphicsDeviceManager(this)
         {
@@ -168,7 +179,8 @@ public class Main : Jelly.GameServer
                 binReader.Read(buffer, 0, buffer.Length);
                 binReader.Dispose();
 
-                (_missingProfile = new Texture2D(GraphicsDevice, 64, 64, false, SurfaceFormat.Color)).SetData(buffer);
+                _missingProfile = new Texture2D(GraphicsDevice, 64, 64, false, SurfaceFormat.Color);
+                _missingProfile.SetData(buffer);
             }
         }
     }
@@ -325,6 +337,14 @@ public class Main : Jelly.GameServer
                     OnSceneTransition(lastScene, nextScene);
                     P2PManager.SendP2PPacketString(PacketType.SceneChange, nextScene.Name, PacketSendMethod.Reliable);
                 }
+                else if(!P2PManager.InLobby)
+                {
+                    var lastScene = scene;
+                    scene?.End();
+                    scene = nextScene;
+                    OnSceneTransition(lastScene, nextScene);
+                    scene?.Begin();
+                }
                 else
                 {
                     nextScene = scene;
@@ -354,22 +374,6 @@ public class Main : Jelly.GameServer
 
         scene?.DrawUI();
 
-        if(ChatWindowOpen)
-        {
-            Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(2, Renderer.ScreenSize.Y - 14, Renderer.ScreenSize.X - 4, 10), Color.Black * 0.5f);
-
-            float x = 4 - (Renderer.ScreenSize.X - MathHelper.Max(Renderer.ScreenSize.X, RegularFont.MeasureString(ChatInput).X));
-            Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, ChatInput, new Vector2(x, Renderer.ScreenSize.Y - 13), Color.White, 4);
-
-            for(int i = 0; i < 5; i++)
-            {
-                int index = P2PManager.ChatHistory.Count - 1 - i;
-                if(index < 0) continue;
-
-                Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, P2PManager.ChatHistory[index].Item1, new Vector2(20, Renderer.ScreenSize.Y - 24 - (i * 10)), P2PManager.ChatHistory[index].Item2, 4);
-            }
-        }
-
         if(SteamManager.IsSteamRunning)
         {
             var members = P2PManager.GetCurrentLobbyMembers();
@@ -391,10 +395,57 @@ public class Main : Jelly.GameServer
                 }
             }
 
-            if(!ChatWindowOpen)
+            Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
+            Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
+        }
+
+        if(ChatWindowOpen || chatAlpha > 0)
+        {
+            int chatWidth = 256;
+            Point chatPos = new(2, Renderer.ScreenSize.Y - 16);
+
+            float alpha = ChatWindowOpen ? 1 : chatAlpha;
+
+            if(P2PManager.ChatHistory.Count > 0)
             {
-                Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
-                Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
+                Renderer.SpriteBatch.Draw(
+                    Renderer.PixelTexture,
+                    new Rectangle(
+                        chatPos.X,
+                        chatPos.Y - 12 * MathHelper.Min(5, P2PManager.ChatHistory.Count),
+                        chatWidth,
+                        12 * MathHelper.Min(5, P2PManager.ChatHistory.Count)
+                    ),
+                    Color.Black * 0.5f * alpha
+                );
+            }
+
+            if (ChatWindowOpen)
+            {
+                Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(chatPos.X, chatPos.Y, chatWidth, 12), Color.Black * 0.67f);
+
+                float x = chatWidth - 1 - MathHelper.Max(chatWidth - 1, RegularFont.MeasureString(ChatInput).X);
+                Renderer.SpriteBatch.DrawStringSpacesFix(
+                    RegularFont,
+                    ChatInput,
+                    new Vector2(x + chatPos.X + 1, chatPos.Y - 1),
+                    Color.White,
+                    4
+                );
+            }
+
+            for(int i = 0; i < 5; i++)
+            {
+                int index = P2PManager.ChatHistory.Count - 1 - i;
+                if(index < 0) continue;
+
+                Renderer.SpriteBatch.DrawStringSpacesFix(
+                    RegularFont,
+                    P2PManager.ChatHistory[index].Item1,
+                    new Vector2(chatPos.X + 1, chatPos.Y - 13 - (i * 12)),
+                    P2PManager.ChatHistory[index].Item2 * alpha,
+                    4
+                );
             }
         }
 
@@ -434,6 +485,13 @@ public class Main : Jelly.GameServer
         }
     }
 
+    public static void OnChatMessage()
+    {
+        if(GlobalCoroutineRunner.IsRunning(nameof(ChatDisappearDelay)))
+            GlobalCoroutineRunner.Stop(nameof(ChatDisappearDelay));
+        GlobalCoroutineRunner.Run(nameof(ChatDisappearDelay), ChatDisappearDelay());
+    }
+
     private static void OnSceneTransition(Scene from, Scene to)
     {
         GC.Collect();
@@ -456,7 +514,11 @@ public class Main : Jelly.GameServer
 
             _playersConfirmed = 0;
             WaitingForAllReady = true;
+
+            if(GlobalCoroutineRunner.IsRunning(nameof(WaitForConfirmation)))
+                GlobalCoroutineRunner.Stop(nameof(WaitForConfirmation));
             GlobalCoroutineRunner.Run(nameof(WaitForConfirmation), WaitForConfirmation(ReadinessReason.WaitForSceneLoad));
+
             Logger.Info("Waiting for everyone to load...");
         }
         else
@@ -481,6 +543,14 @@ public class Main : Jelly.GameServer
         return false;
     }
 
+    public static void HandleLeavingLobby()
+    {
+        _playersConfirmed = 0;
+        WaitingForAllReady = false;
+        ChangeScene("Title", false);
+        AlreadyLoadedAvatars.Clear();
+    }
+
     protected override void OnActivated(object sender, EventArgs args)
     {
         base.OnActivated(sender, args);
@@ -502,7 +572,7 @@ public class Main : Jelly.GameServer
 
     private static Texture2D GetMediumSteamAvatar(GraphicsDevice device, CSteamID cSteamID)
     {
-        if(_instance.Server)
+        if(Instance.Server)
             return null;
 
         if(AlreadyLoadedAvatars.TryGetValue(cSteamID, out Texture2D value))
@@ -522,18 +592,24 @@ public class Main : Jelly.GameServer
                     var texture = new Texture2D(device, (int)width, (int)height, false, SurfaceFormat.Color);
                     texture.SetData(rgba, 0, rgba.Length);
 
-                    if(texture == _missingProfile)
+                    byte[] missingData = new byte[_missingProfile.Width * _missingProfile.Height * 4];
+                    _missingProfile.GetData(missingData);
+
+                    if(rgba == missingData)
                     {
+                        AlreadyLoadedAvatars.Remove(cSteamID);
                         AlreadyLoadedAvatars.Add(cSteamID, DefaultSteamProfile);
                         return DefaultSteamProfile;
                     }
 
+                    AlreadyLoadedAvatars.Remove(cSteamID);
                     AlreadyLoadedAvatars.Add(cSteamID, texture);
                     return texture;
                 }
             }
         }
 
+        AlreadyLoadedAvatars.Remove(cSteamID);
         AlreadyLoadedAvatars.Add(cSteamID, DefaultSteamProfile);
         return DefaultSteamProfile;
     }
@@ -549,5 +625,39 @@ public class Main : Jelly.GameServer
         WaitingForAllReady = false;
         OnPlayersReady(readinessReason);
         _playersConfirmed = 0;
+    }
+
+    static float chatAlpha;
+
+    static IEnumerator ChatDisappearDelay(float holdTime = 5f, float fadeTime = 1f)
+    {
+        chatAlpha = 1;
+
+        yield return holdTime;
+
+        while(chatAlpha > 0)
+        {
+            float interval = (float)Instance.TargetElapsedTime.TotalSeconds;
+            chatAlpha -= interval / fadeTime;
+            yield return null;
+        }
+    }
+
+    private static readonly List<string> missingAssets = [];
+
+    public static T LoadContent<T>(string assetName)
+    {
+        if(missingAssets.Contains(assetName)) return default;
+
+        try
+        {
+            return Instance.Content.Load<T>(assetName);
+        }
+        catch(Exception e)
+        {
+            Console.Error.WriteLine(e.GetType().FullName + $": The content file \"{assetName}\" was not found.");
+            missingAssets.Add(assetName);
+            return default;
+        }
     }
 }

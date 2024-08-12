@@ -19,12 +19,12 @@ public class EntityDef : ContentDef
 
     public Entity Build()
     {
-        var entity = new Entity(Position)
+        var entity = new Entity(Position);
+
+        foreach(var c in Components)
         {
-            Components = {
-                Components
-            }
-        };
+            entity.Add(c);
+        }
 
         return entity;
     }

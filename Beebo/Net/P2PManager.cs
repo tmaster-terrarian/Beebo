@@ -20,7 +20,7 @@ public static class P2PManager
 
     public static bool InLobby { get; private set; }
     public static CSteamID CurrentLobby { get; private set; }
-    public static CSteamID MyID { get; } = SteamUser.GetSteamID();
+    public static CSteamID MyID => SteamUser.GetSteamID();
 
     public static int PlayerCount => InLobby ? SteamMatchmaking.GetNumLobbyMembers(CurrentLobby) : 1;
 
@@ -142,20 +142,24 @@ public static class P2PManager
         }
     }
 
-    public static void WriteChatMessage(string message, CSteamID origin, bool system = false)
+    public static void WriteChatMessage(string message, CSteamID origin, bool system = false, bool noLog = false)
     {
         if(system)
         {
-            SteamManager.Logger.Info("Server msg: " + message);
+            if(!noLog)
+                SteamManager.Logger.Info("Server msg: " + message);
             ChatHistory.Add(new(message, Color.Yellow));
         }
         else
         {
             string name = SteamFriends.GetFriendPersonaName(origin);
 
-            SteamManager.Logger.Info(name + " says: " + message);
+            if(!noLog)
+                SteamManager.Logger.Info(name + " says: " + message);
             ChatHistory.Add(new($"{name}: {message}", Color.White));
         }
+
+        Main.OnChatMessage();
     }
 
     public static void SendP2PPacket(PacketType type, byte[] message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
@@ -218,6 +222,8 @@ public static class P2PManager
             ChatHistory.Clear();
 
             SteamManager.Logger.Info($"Lobby left!");
+
+            Main.HandleLeavingLobby();
         }
     }
 
@@ -326,37 +332,45 @@ public static class P2PManager
             var idChanged = (CSteamID)result.m_ulSteamIDUserChanged;
             var idMakingChange = (CSteamID)result.m_ulSteamIDUserChanged;
 
-            string message = "???";
+            string message = null;
 
-            if((state & ChatMemberStateChange.Entered) == ChatMemberStateChange.Entered)
+            if(Main.IsHost)
             {
-                if(SteamFriends.RequestUserInformation(idChanged, false))
+                if((state & ChatMemberStateChange.Entered) == ChatMemberStateChange.Entered)
                 {
-                    Main.AlreadyLoadedAvatars.Remove(idChanged);
-                    Main.AlreadyLoadedAvatars.Add(idChanged, Main.DefaultSteamProfile);
+                    message = $"{SteamFriends.GetFriendPersonaName(idChanged)} joined.";
                 }
-
-                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} joined.";
-            }
-            if((state & ChatMemberStateChange.Left) == ChatMemberStateChange.Left)
-            {
-                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} left.";
-            }
-            if((state & ChatMemberStateChange.Disconnected) == ChatMemberStateChange.Disconnected)
-            {
-                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} lost connection.";
-            }
-            if((state & ChatMemberStateChange.Kicked) == ChatMemberStateChange.Kicked)
-            {
-                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} was kicked from the lobby by {SteamFriends.GetFriendPersonaName(idMakingChange)}.";
-            }
-            if((state & ChatMemberStateChange.Banned) == ChatMemberStateChange.Banned)
-            {
-                message = $"{SteamFriends.GetFriendPersonaName(idChanged)} was banned from the lobby by {SteamFriends.GetFriendPersonaName(idMakingChange)}.";
+                if((state & ChatMemberStateChange.Left) == ChatMemberStateChange.Left)
+                {
+                    message = $"{SteamFriends.GetFriendPersonaName(idChanged)} left.";
+                }
+                if((state & ChatMemberStateChange.Disconnected) == ChatMemberStateChange.Disconnected)
+                {
+                    message = $"{SteamFriends.GetFriendPersonaName(idChanged)} lost connection.";
+                }
+                if((state & ChatMemberStateChange.Kicked) == ChatMemberStateChange.Kicked)
+                {
+                    message = $"{SteamFriends.GetFriendPersonaName(idChanged)} was kicked from the lobby by {SteamFriends.GetFriendPersonaName(idMakingChange)}.";
+                }
+                if((state & ChatMemberStateChange.Banned) == ChatMemberStateChange.Banned)
+                {
+                    message = $"{SteamFriends.GetFriendPersonaName(idChanged)} was banned from the lobby by {SteamFriends.GetFriendPersonaName(idMakingChange)}.";
+                }
             }
 
-            WriteChatMessage(message, idChanged, true);
-            SendP2PPacketString(PacketType.ChatMessage2, message, PacketSendMethod.Reliable);
+            if(state - ChatMemberStateChange.Entered != 0)
+            {
+                if(idChanged == MyID)
+                {
+                    Main.HandleLeavingLobby();
+                }
+            }
+
+            if(message is not null)
+            {
+                WriteChatMessage(message, idChanged, true);
+                SendP2PPacketString(PacketType.ChatMessage2, message, PacketSendMethod.Reliable);
+            }
         }
     }
 
@@ -370,7 +384,6 @@ public static class P2PManager
         if((result.m_nChangeFlags & EPersonaChange.k_EPersonaChangeAvatar) != 0)
         {
             Main.AlreadyLoadedAvatars.Remove(id);
-            Main.GetMediumSteamAvatar(id);
         }
     }
 
@@ -383,7 +396,16 @@ public static class P2PManager
 
             if(GetLobbyOwner(out CSteamID owner) && owner != MyID)
             {
-                SendP2PPacket(owner, PacketType.FirstJoin, [(byte)FirstJoinPacketType.SyncRequest, ]);
+                SendP2PPacket(owner, PacketType.FirstJoin, [(byte)FirstJoinPacketType.SyncRequest, ], PacketSendMethod.Reliable);
+            }
+
+            foreach(var user in GetCurrentLobbyMembers())
+            {
+                if(SteamFriends.RequestUserInformation(user, false))
+                {
+                    Main.AlreadyLoadedAvatars.Remove(user);
+                    Main.AlreadyLoadedAvatars.Add(user, Main.DefaultSteamProfile);
+                }
             }
 
             SteamManager.Logger.Info("Lobby joined!");
