@@ -407,9 +407,6 @@ public static class P2PManager
                 SendP2PPacket(owner, PacketType.FirstJoin, [(byte)FirstJoinPacketType.SyncRequest, ], PacketSendMethod.Reliable);
             }
 
-            if(owner == MyID)
-                Main.ChangeScene("Test", false);
-
             foreach(var user in GetCurrentLobbyMembers())
             {
                 if(SteamFriends.RequestUserInformation(user, false))

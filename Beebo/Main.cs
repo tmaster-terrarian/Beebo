@@ -578,10 +578,13 @@ public class Main : Jelly.GameServer
 
     public static void ReadSyncPacket(byte[] data)
     {
-        using var stream = new MemoryStream();
+        using var stream = new MemoryStream(data);
         var binaryReader = new BinaryReader(stream);
 
-        var newScene = SceneDef.Deserialize(binaryReader.ReadString());
+        var json = binaryReader.ReadString();
+        Logger.Info(json);
+
+        var newScene = SceneDef.Deserialize(json);
         ChangeLocalScene(newScene?.Build());
         scene?.Subscribe();
     }
