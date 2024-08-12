@@ -87,11 +87,11 @@ public class Main : Jelly.GameServer
 
     private readonly bool steamFailed;
 
-    private static bool debugEnabled;
-
     public static class Debug
     {
-        public static bool Enabled => debugEnabled;
+        public static bool Enabled { get; set; }
+
+        public static bool LogToChat { get; set; } = true;
     }
 
     public Main() : base()
@@ -101,7 +101,7 @@ public class Main : Jelly.GameServer
         Instance = this;
 
         #if DEBUG
-        debugEnabled = true;
+        Debug.Enabled = true;
         #endif
 
         _graphics = new GraphicsDeviceManager(this)
@@ -154,7 +154,7 @@ public class Main : Jelly.GameServer
         Registries.AddRegistry(new ComponentRegistry());
         Registries.AddRegistry(new SceneRegistry());
 
-        Providers.Initialize(new BeeboNetworkProvider(), new BasicContentProvider());
+        Providers.Initialize(new BeeboNetworkProvider(), new BeeboContentProvider());
 
         if(!Server) base.Initialize();
         else LoadContent();
@@ -199,6 +199,10 @@ public class Main : Jelly.GameServer
                 {
                     P2PManager.JoinLobby((CSteamID)Program.LobbyToJoin);
                     Program.LobbyToJoin = 0;
+                }
+                else
+                {
+                    ChangeScene("Title");
                 }
             }
         }
@@ -319,6 +323,17 @@ public class Main : Jelly.GameServer
             if(Input.GetPressed(Keys.F2) && P2PManager.InLobby && IsHost)
             {
                 ChangeScene("Test", true);
+            }
+
+            if(Input.GetPressed(Keys.F3))
+            {
+                if(scene is not null)
+                {
+                    var json = scene.Serialize();
+                    Logger.Info(json);
+                    var newScene = SceneDef.Deserialize(json);
+                    Logger.Info(newScene);
+                }
             }
         }
 
@@ -549,6 +564,26 @@ public class Main : Jelly.GameServer
         WaitingForAllReady = false;
         ChangeScene("Title", false);
         AlreadyLoadedAvatars.Clear();
+    }
+
+    public static byte[] GetSyncPacket()
+    {
+        using var stream = new MemoryStream();
+        var binaryWriter = new BinaryWriter(stream);
+
+        binaryWriter.Write(scene.Serialize());
+
+        return stream.GetBuffer();
+    }
+
+    public static void ReadSyncPacket(byte[] data)
+    {
+        using var stream = new MemoryStream();
+        var binaryReader = new BinaryReader(stream);
+
+        var newScene = SceneDef.Deserialize(binaryReader.ReadString());
+        ChangeLocalScene(newScene?.Build());
+        scene?.Subscribe();
     }
 
     protected override void OnActivated(object sender, EventArgs args)

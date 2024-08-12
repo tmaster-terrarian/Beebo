@@ -66,13 +66,21 @@ public static class P2PManager
                                     return;
 
                                 // send current game state to steamIDRemote
-                                SendP2PPacket(steamIDRemote, PacketType.FirstJoin, [(byte)FirstJoinPacketType.Sync, ], PacketSendMethod.Reliable);
+                                SendP2PPacket(
+                                    steamIDRemote,
+                                    PacketType.FirstJoin,
+                                    [
+                                        (byte)FirstJoinPacketType.Sync,
+                                        .. Main.GetSyncPacket()
+                                    ],
+                                    PacketSendMethod.Reliable
+                                );
 
                                 break;
                             }
                             case FirstJoinPacketType.Sync:
                             {
-                                // set game state from data
+                                Main.ReadSyncPacket(data[1..]);
                                 break;
                             }
                         }
@@ -398,6 +406,9 @@ public static class P2PManager
             {
                 SendP2PPacket(owner, PacketType.FirstJoin, [(byte)FirstJoinPacketType.SyncRequest, ], PacketSendMethod.Reliable);
             }
+
+            if(owner == MyID)
+                Main.ChangeScene("Test", false);
 
             foreach(var user in GetCurrentLobbyMembers())
             {

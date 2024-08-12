@@ -1,16 +1,43 @@
 {
-    "entities": [
+  "entities": [
+    {
+      "components": [
         {
-            "components": [],
-            "position": [
-                0,
-                0
-            ],
-            "tag": 0,
-            "enabled": false,
-            "visible": false,
-            "depth": 0
+          "$type": "SpriteComponent",
+          "texturePath": "Images/UI/Multiplayer/DefaultProfileOld",
+          "sourceRectangle": null,
+          "scale": [
+            1,
+            1
+          ],
+          "color": {
+            "b": 255,
+            "g": 255,
+            "r": 255,
+            "a": 255,
+            "packedValue": 4294967295
+          },
+          "alpha": 1,
+          "rotation": 0,
+          "pivot": [
+            0,
+            0
+          ],
+          "spriteEffects": "None",
+          "enabled": true,
+          "visible": true
         }
-    ],
-    "name": "Title"
+      ],
+      "position": [
+        0,
+        0
+      ],
+      "enabled": true,
+      "visible": true,
+      "tag": 0,
+      "depth": 0,
+      "name": "EntityDef"
+    }
+  ],
+  "name": "Title"
 }

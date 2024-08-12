@@ -13,18 +13,28 @@ public class EntityDef : ContentDef
 
     public Point Position { get; set; }
 
-    public bool Enabled { get; set; }
+    public bool Enabled { get; set; } = true;
 
-    public bool Visible { get; set; }
+    public bool Visible { get; set; } = true;
 
-    public Entity Build()
+    public int Tag { get; set; }
+
+    public int Depth { get; set; }
+
+    public Entity Build(Scene scene)
     {
-        var entity = new Entity(Position);
-
-        foreach(var c in Components)
+        var entity = new Entity()
         {
-            entity.Add(c);
-        }
+            Enabled = Enabled,
+            Visible = Visible,
+            Position = Position,
+            Tag = Tag,
+            Depth = Depth,
+        };
+
+        entity.Components.Add(Components);
+
+        scene.Entities.Add(entity);
 
         return entity;
     }

@@ -24,12 +24,11 @@ public class SceneRegistry : Registry<SceneDef>
             new JsonPointConverter(),
             new JsonVector2Converter(),
         },
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
         ReadCommentHandling = JsonCommentHandling.Skip,
         WriteIndented = true,
         ReferenceHandler = ReferenceHandler.IgnoreCycles,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        UnknownTypeHandling = JsonUnknownTypeHandling.JsonNode,
         TypeInfoResolver = ComponentRegistry.TypeResolver,
     };
 
@@ -45,7 +44,7 @@ public class SceneRegistry : Registry<SceneDef>
             Entities = [
                 new EntityDef()
                 {
-                    Position = new(0, 0),
+                    Position = new(178, 182),
                     Enabled = true,
                     Visible = true,
                     Components = [
@@ -78,6 +77,14 @@ public class SceneRegistry : Registry<SceneDef>
 
     public static SceneDef? LoadFromFile(string path)
     {
-        return JsonSerializer.Deserialize<SceneDef>(File.ReadAllText(Path.Combine("Content", "Levels", path + ".json")), SerializerOptions);
+        return SceneDef.Deserialize(File.ReadAllText(Path.Combine("Content", "Levels", path + ".json")));
+    }
+}
+
+public static class Extensions
+{
+    public static string Serialize(this Scene scene)
+    {
+        return JsonSerializer.Serialize((SceneDef)scene, SceneRegistry.SerializerOptions);
     }
 }
