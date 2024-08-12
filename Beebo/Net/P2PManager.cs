@@ -73,7 +73,7 @@ public static class P2PManager
                                         (byte)FirstJoinPacketType.Sync,
                                         .. Main.GetSyncPacket()
                                     ],
-                                    PacketSendMethod.ReliableWithBuffering
+                                    PacketSendMethod.Reliable
                                 );
 
                                 break;
@@ -397,7 +397,7 @@ public static class P2PManager
 
     private static void OnLobbyEntered(LobbyEnter_t result)
     {
-        if(result.m_EChatRoomEnterResponse == 1)
+        if(result.m_EChatRoomEnterResponse == (uint)EChatRoomEnterResponse.k_EChatRoomEnterResponseSuccess)
         {
             CurrentLobby = new CSteamID(result.m_ulSteamIDLobby);
             InLobby = true;
