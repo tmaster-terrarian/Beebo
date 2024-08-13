@@ -28,6 +28,8 @@ public class SceneRegistry : Registry<SceneDef>
         TypeInfoResolver = ComponentRegistry.TypeResolver,
     };
 
+    public static PolymorphicTypeResolver EntityDefTypeResolver { get; } = new(typeof(EntityDef));
+
     public static Dictionary<string, SceneDef> DefsByName { get; } = [];
 
     public override void Init()
