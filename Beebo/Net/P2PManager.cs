@@ -26,8 +26,6 @@ public static class P2PManager
 
     public static List<CSteamID> PublicLobbyList { get; } = [];
 
-    public static List<Tuple<string, Color>> ChatHistory { get; } = [];
-
     public static void InitializeCallbacks()
     {
         Callback_P2PSessionRequest = Callback<P2PSessionRequest_t>.Create(OnNewConnection);
@@ -50,9 +48,11 @@ public static class P2PManager
                 if(msgSize <= 0) return;
 
                 PacketType TYPE = (PacketType)packet[0];
-                byte[] data = packet[1..];
+                byte[] data = packet.Length > 1 ? packet[1..] : [];
 
-                string dataString = data.ToStringUTF8();
+                string dataString = data.Length > MathHelper.Max(1, data[0])
+                    ? data[1..MathHelper.Min(data[0] + 1, data.Length)].ToStringUTF8()
+                    : "";
 
                 switch(TYPE)
                 {
@@ -98,12 +98,12 @@ public static class P2PManager
                     }
                     case PacketType.ChatMessage:
                     {
-                        WriteChatMessage(dataString, steamIDRemote);
+                        Main.WriteChatMessage(dataString, steamIDRemote);
                         break;
                     }
                     case PacketType.ChatMessage2:
                     {
-                        WriteChatMessage(dataString, steamIDRemote, true);
+                        Main.WriteChatMessage(dataString, steamIDRemote, true);
                         break;
                     }
                     case PacketType.SceneChange:
@@ -150,26 +150,6 @@ public static class P2PManager
         }
     }
 
-    public static void WriteChatMessage(string message, CSteamID origin, bool system = false, bool noLog = false)
-    {
-        if(system)
-        {
-            if(!noLog)
-                SteamManager.Logger.Info("Server msg: " + message);
-            ChatHistory.Add(new(message, Color.Yellow));
-        }
-        else
-        {
-            string name = SteamFriends.GetFriendPersonaName(origin);
-
-            if(!noLog)
-                SteamManager.Logger.Info(name + " says: " + message);
-            ChatHistory.Add(new($"{name}: {message}", Color.White));
-        }
-
-        Main.OnChatMessage();
-    }
-
     public static void SendP2PPacket(PacketType type, byte[] message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
     {
         for(int i = 0; i < SteamMatchmaking.GetNumLobbyMembers(CurrentLobby); i++)
@@ -180,7 +160,7 @@ public static class P2PManager
 
     public static void SendP2PPacketString(PacketType type, string message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
     {
-        SendP2PPacket(type, System.Text.Encoding.UTF8.GetBytes(message), packetSendMethod);
+        SendP2PPacket(type, message.GetBytes(), packetSendMethod);
     }
 
     public static void SendP2PPacket(CSteamID target, PacketType type, byte[] message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
@@ -195,7 +175,7 @@ public static class P2PManager
 
     public static void SendP2PPacketString(CSteamID target, PacketType type, string message, PacketSendMethod packetSendMethod = PacketSendMethod.Reliable)
     {
-        SendP2PPacket(target, type, System.Text.Encoding.UTF8.GetBytes(message), packetSendMethod);
+        SendP2PPacket(target, type, message.GetBytes(), packetSendMethod);
     }
 
     public static void CreateLobby(LobbyType lobbyType = LobbyType.Public, int maxPlayers = 4)
@@ -227,7 +207,7 @@ public static class P2PManager
             CurrentLobby = CSteamID.Nil;
             InLobby = false;
 
-            ChatHistory.Clear();
+            Main.ChatHistory.Clear();
 
             SteamManager.Logger.Info($"Lobby left!");
 
@@ -258,7 +238,7 @@ public static class P2PManager
 
         // SendP2PPacketString(PacketType.ChatMessage2, $"{SteamFriends.GetFriendPersonaName(oldOwner)} has transferred ownership of the lobby to {SteamFriends.GetFriendPersonaName(newOwner)}.", PacketSendMethod.Reliable);
 
-        WriteChatMessage(message, MyID, true);
+        Main.WriteChatMessage(message, MyID, true);
         SendP2PPacketString(PacketType.ChatMessage2, message, PacketSendMethod.Reliable);
 
         SteamMatchmaking.SetLobbyOwner(CurrentLobby, newOwner);
@@ -376,7 +356,7 @@ public static class P2PManager
 
             if(message is not null)
             {
-                WriteChatMessage(message, idChanged, true);
+                Main.WriteChatMessage(message, idChanged, true);
                 SendP2PPacketString(PacketType.ChatMessage2, message, PacketSendMethod.Reliable);
             }
         }
@@ -402,11 +382,6 @@ public static class P2PManager
             CurrentLobby = new CSteamID(result.m_ulSteamIDLobby);
             InLobby = true;
 
-            if(GetLobbyOwner(out CSteamID owner) && owner != MyID)
-            {
-                SendP2PPacket(owner, PacketType.FirstJoin, [(byte)FirstJoinPacketType.SyncRequest, ], PacketSendMethod.Reliable);
-            }
-
             foreach(var user in GetCurrentLobbyMembers())
             {
                 if(SteamFriends.RequestUserInformation(user, false))
@@ -415,6 +390,8 @@ public static class P2PManager
                     Main.AlreadyLoadedAvatars.Add(user, Main.DefaultSteamProfile);
                 }
             }
+
+            SendP2PPacket(GetLobbyOwner(), PacketType.FirstJoin, [(byte)FirstJoinPacketType.SyncRequest, ], PacketSendMethod.Reliable);
 
             SteamManager.Logger.Info("Lobby joined!");
         }

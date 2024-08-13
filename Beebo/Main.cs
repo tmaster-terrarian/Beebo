@@ -33,6 +33,8 @@ public class Main : Jelly.GameServer
 
     public static Logger Logger { get; } = new("Main");
 
+    public static ulong Ticks { get; private set; }
+
     public static CoroutineRunner GlobalCoroutineRunner { get; } = new();
 
     public static Point MousePosition => new(
@@ -47,6 +49,8 @@ public class Main : Jelly.GameServer
 
     public static int NetID => P2PManager.GetMemberIndex(P2PManager.MyID);
     public static bool IsHost => P2PManager.GetLobbyOwner() == P2PManager.MyID;
+
+    public static List<Tuple<string, Color>> ChatHistory { get; } = [];
 
     public static bool WaitingForAllReady { get; set; }
 
@@ -263,7 +267,7 @@ public class Main : Jelly.GameServer
             bool backspace = input.Remove('\x127');
 
             ChatInput += string.Join(null, input);
-            ChatInput = ChatInput[..MathHelper.Min(ChatInput.Length, 255)];
+            ChatInput = ChatInput[..MathHelper.Min(ChatInput.Length, 4095)];
 
             if(backspace && ChatInput.Length > 0)
             {
@@ -276,9 +280,9 @@ public class Main : Jelly.GameServer
             ChatWindowOpen = !ChatWindowOpen;
             if(!ChatWindowOpen && ChatInput.Length > 0)
             {
-                string message = ChatInput[..MathHelper.Min(ChatInput.Length, 255)];
+                string message = ChatInput[..MathHelper.Min(ChatInput.Length, 4095)];
 
-                P2PManager.WriteChatMessage(message, P2PManager.MyID, false);
+                WriteChatMessage(message, (!SteamManager.IsSteamRunning) ? CSteamID.Nil : P2PManager.MyID, false);
                 P2PManager.SendP2PPacketString(PacketType.ChatMessage, message, PacketSendMethod.Reliable);
                 ChatInput = "";
             }
@@ -368,6 +372,8 @@ public class Main : Jelly.GameServer
         }
 
         base.Update(gameTime);
+
+        Ticks++;
     }
 
     private void PreDraw(GameTime gameTime)
@@ -416,50 +422,55 @@ public class Main : Jelly.GameServer
 
         if(ChatWindowOpen || chatAlpha > 0)
         {
+            int spaceWidth = 4;
             int chatWidth = 256;
             Point chatPos = new(2, Renderer.ScreenSize.Y - 16);
 
             float alpha = ChatWindowOpen ? 1 : chatAlpha;
 
-            if(P2PManager.ChatHistory.Count > 0)
+            if(ChatHistory.Count > 0)
             {
                 Renderer.SpriteBatch.Draw(
                     Renderer.PixelTexture,
                     new Rectangle(
                         chatPos.X,
-                        chatPos.Y - 12 * MathHelper.Min(5, P2PManager.ChatHistory.Count),
+                        chatPos.Y - 12 * MathHelper.Min(5, ChatHistory.Count),
                         chatWidth,
-                        12 * MathHelper.Min(5, P2PManager.ChatHistory.Count)
+                        12 * MathHelper.Min(5, ChatHistory.Count)
                     ),
                     Color.Black * 0.5f * alpha
                 );
             }
 
-            if (ChatWindowOpen)
+            if(ChatWindowOpen)
             {
                 Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(chatPos.X, chatPos.Y, chatWidth, 12), Color.Black * 0.67f);
 
-                float x = chatWidth - 1 - MathHelper.Max(chatWidth - 1, RegularFont.MeasureString(ChatInput).X);
+                float x = chatWidth - 1 - MathHelper.Max(
+                    chatWidth - 1,
+                    RegularFont.MeasureString(ChatInput).X + (ChatInput.Split(' ').Length - 1) * spaceWidth
+                );
+
                 Renderer.SpriteBatch.DrawStringSpacesFix(
                     RegularFont,
                     ChatInput,
                     new Vector2(x + chatPos.X + 1, chatPos.Y - 1),
                     Color.White,
-                    4
+                    spaceWidth
                 );
             }
 
             for(int i = 0; i < 5; i++)
             {
-                int index = P2PManager.ChatHistory.Count - 1 - i;
+                int index = ChatHistory.Count - 1 - i;
                 if(index < 0) continue;
 
                 Renderer.SpriteBatch.DrawStringSpacesFix(
                     RegularFont,
-                    P2PManager.ChatHistory[index].Item1,
+                    ChatHistory[index].Item1,
                     new Vector2(chatPos.X + 1, chatPos.Y - 13 - (i * 12)),
-                    P2PManager.ChatHistory[index].Item2 * alpha,
-                    4
+                    ChatHistory[index].Item2 * alpha,
+                    spaceWidth
                 );
             }
         }
@@ -500,8 +511,29 @@ public class Main : Jelly.GameServer
         }
     }
 
-    public static void OnChatMessage()
+    public static void WriteChatMessage(string message, CSteamID origin, bool system = false, bool noLog = false)
     {
+        if(system)
+        {
+            if(!noLog)
+                Logger.Info("Server msg: " + message);
+
+            ChatHistory.Add(new(message, Color.Yellow));
+        }
+        else
+        {
+            string name = "???";
+            if(SteamManager.IsSteamRunning && origin != CSteamID.Nil)
+            {
+                name = SteamFriends.GetFriendPersonaName(origin);
+            }
+
+            if(!noLog)
+                Logger.Info(name + " says: " + message);
+
+            ChatHistory.Add(new($"{name}: {message}", Color.White));
+        }
+
         if(GlobalCoroutineRunner.IsRunning(nameof(ChatDisappearDelay)))
             GlobalCoroutineRunner.Stop(nameof(ChatDisappearDelay));
         GlobalCoroutineRunner.Run(nameof(ChatDisappearDelay), ChatDisappearDelay());

@@ -80,7 +80,7 @@ internal class Program
             {
                 int i = callback.Index ?? 0;
                 int i2 = i + (callback.Count ?? buffer.Length) - 1;
-                Beebo.Net.P2PManager.WriteChatMessage(string.Concat(buffer[i..i2]), CSteamID.Nil, true, true);
+                Beebo.Main.WriteChatMessage(string.Concat(buffer[i..i2]), CSteamID.Nil, true, true);
             }
         }
         else
@@ -89,7 +89,7 @@ internal class Program
 
             if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
             {
-                Beebo.Net.P2PManager.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
+                Beebo.Main.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
             }
         }
     }
@@ -100,7 +100,7 @@ internal class Program
 
         if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
         {
-            Beebo.Net.P2PManager.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
+            Beebo.Main.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
         }
     }
 
@@ -114,7 +114,7 @@ internal class Program
             {
                 int i = callback.Index ?? 0;
                 int i2 = i + (callback.Count ?? buffer.Length) - 1;
-                Beebo.Net.P2PManager.WriteChatMessage(string.Concat(buffer[i..i2]), CSteamID.Nil, true, true);
+                Beebo.Main.WriteChatMessage(string.Concat(buffer[i..i2]), CSteamID.Nil, true, true);
             }
         }
         else
@@ -123,7 +123,7 @@ internal class Program
 
             if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
             {
-                Beebo.Net.P2PManager.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
+                Beebo.Main.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
             }
         }
     }
@@ -134,7 +134,7 @@ internal class Program
 
         if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
         {
-            Beebo.Net.P2PManager.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
+            Beebo.Main.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
         }
     }
 }

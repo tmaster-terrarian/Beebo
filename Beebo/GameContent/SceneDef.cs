@@ -45,7 +45,8 @@ public class SceneDef : ContentDef
                 Visible = entity.Visible,
                 Components = [.. entity.Components],
                 Depth = entity.Depth,
-                Tag = entity.Tag
+                Tag = entity.Tag,
+                NetID = entity.NetID,
             });
         }
 

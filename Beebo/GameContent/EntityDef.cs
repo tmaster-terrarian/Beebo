@@ -21,18 +21,20 @@ public class EntityDef : ContentDef
 
     public int Depth { get; set; }
 
+    public int? NetID { get; set; } = null;
+
     public Entity Build(Scene scene)
     {
-        var entity = new Entity()
+        var entity = new Entity(Position, NetID ?? -1)
         {
             Enabled = Enabled,
             Visible = Visible,
-            Position = Position,
             Tag = Tag,
             Depth = Depth,
         };
 
-        entity.Components.Add(Components);
+        if(Components is not null)
+            entity.Components.Add(Components);
 
         scene.Entities.Add(entity);
 

@@ -24,7 +24,7 @@ public class SceneRegistry : Registry<SceneDef>
             new JsonPointConverter(),
             new JsonVector2Converter(),
         },
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         ReadCommentHandling = JsonCommentHandling.Skip,
         WriteIndented = true,
         ReferenceHandler = ReferenceHandler.IgnoreCycles,

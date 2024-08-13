@@ -15,24 +15,26 @@ public class ComponentRegistry : Registry<ComponentDef>
 {
     public static HashSet<Type> RegisteredTypes { get; } = [];
 
-    public static PolymorphicTypeResolver TypeResolver { get; } = new PolymorphicTypeResolver(typeof(Component));
+    public static PolymorphicTypeResolver TypeResolver { get; } = new(typeof(Component));
 
     public override void Init()
     {
         // AddType(typeof(TestComponent));
         // AddType(typeof(TestComponent2));
 
-        var assembly = Assembly.GetAssembly(GetType());
+        var assembly = Assembly.GetExecutingAssembly();
 
-        if(assembly is null) return;
+        // if(assembly is not null)
+        // foreach(var type in assembly.DefinedTypes)
+        // {
+        //     if(type.IsClass && type.IsSubclassOf(typeof(Component)))
+        //     {
+        //         AddType(type);
+        //     }
+        // }
 
-        foreach(var type in assembly.DefinedTypes)
-        {
-            if(type.IsClass && type.IsSubclassOf(typeof(Component)))
-            {
-                AddType(type);
-            }
-        }
+        if(assembly is not null)
+            TypeResolver.DerivedTypes = [..TypeResolver.DerivedTypes, ..TypeResolver.GetDerivedTypesFromAssembly(assembly)];
 
         Main.Logger.Info($"Registered Components: {TypesToString(RegisteredTypes)}");
     }

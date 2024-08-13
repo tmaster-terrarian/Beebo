@@ -10,4 +10,9 @@ public static class Extensions
     {
         return System.Text.Encoding.UTF8.GetString([..value]);
     }
+
+    public static string ToStringASCII(this IEnumerable<byte> value)
+    {
+        return System.Text.Encoding.ASCII.GetString([..value]);
+    }
 }
