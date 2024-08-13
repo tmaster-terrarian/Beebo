@@ -23,6 +23,8 @@ public class EntityDef : ContentDef
 
     public int? NetID { get; set; } = null;
 
+    internal long? EntityID { get; set; } = null;
+
     public Entity Build(Scene scene)
     {
         var entity = new Entity(Position, NetID ?? -1)
@@ -32,6 +34,9 @@ public class EntityDef : ContentDef
             Tag = Tag,
             Depth = Depth,
         };
+
+        if(EntityID is not null)
+            Jelly.Tamperment.BTS.SetEntityID(entity, EntityID);
 
         if(Components is not null)
             entity.Components.Add(Components);

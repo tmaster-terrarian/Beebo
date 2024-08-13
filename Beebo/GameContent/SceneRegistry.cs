@@ -51,8 +51,6 @@ public class SceneRegistry : Registry<SceneDef>
                         new SpriteComponent {
                             TexturePath = "Images/UI/Multiplayer/DefaultProfileOld"
                         },
-                        new TestComponent(),
-                        new TestComponent2()
                     ]
                 }
             ]
