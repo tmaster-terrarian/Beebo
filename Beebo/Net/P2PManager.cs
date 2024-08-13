@@ -108,7 +108,7 @@ public static class P2PManager
                     }
                     case PacketType.SceneChange:
                     {
-                        Main.ChangeScene(dataString);
+                        Main.ReadSyncPacket(data[1..]);
                         Main.WaitingForAllReady = true;
                         SendP2PPacket(steamIDRemote, PacketType.CallbackRequest, [(byte)CallbackPacketType.SceneChange], PacketSendMethod.Reliable);
                         break;

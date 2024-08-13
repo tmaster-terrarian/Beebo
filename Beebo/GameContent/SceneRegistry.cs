@@ -1,12 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-
-using Beebo.GameContent.Components;
-
 using Jelly;
 using Jelly.Components;
 using Jelly.GameContent;
@@ -16,7 +12,7 @@ namespace Beebo.GameContent;
 
 public class SceneRegistry : Registry<SceneDef>
 {
-    public static JsonSerializerOptions SerializerOptions { get; } = new()
+    public static JsonSerializerOptions SerializerOptions => new()
     {
         Converters =
         {
@@ -58,8 +54,8 @@ public class SceneRegistry : Registry<SceneDef>
 
         Register(test);
 
-        Main.Logger.Info(JsonSerializer.Serialize(title, SerializerOptions));
-        Main.Logger.Info(JsonSerializer.Serialize(test, SerializerOptions));
+        // Main.Logger.Info(title);
+        // Main.Logger.Info(test);
     }
 
     private SceneDef Add(string name)
@@ -79,10 +75,16 @@ public class SceneRegistry : Registry<SceneDef>
     }
 }
 
-public static class Extensions
+public static class SceneExtensions
 {
-    public static string Serialize(this Scene scene)
+    public static string Serialize(this Scene scene, bool pretty = false)
     {
-        return JsonSerializer.Serialize((SceneDef)scene, SceneRegistry.SerializerOptions);
+        var options = SceneRegistry.SerializerOptions;
+
+        options.WriteIndented = pretty;
+
+        var ret = JsonSerializer.Serialize((SceneDef)scene, options);
+
+        return ret;
     }
 }

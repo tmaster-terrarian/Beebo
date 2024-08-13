@@ -8,7 +8,7 @@ internal class Program
     public static bool UseSteamworks { get; private set; } = true;
     public static ulong LobbyToJoin { get; set; } = 0;
 
-    public static StreamWriter LogFile { get; private set; }
+    internal static StreamWriter LogFile { get; private set; }
 
     private static TextWriter oldOut;
     private static TextWriter oldError;

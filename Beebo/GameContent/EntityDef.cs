@@ -4,6 +4,8 @@ using Microsoft.Xna.Framework;
 
 using Jelly;
 using Jelly.GameContent;
+using Jelly.Tamperment;
+using System.Text.Json.Serialization;
 
 namespace Beebo.GameContent;
 
@@ -23,7 +25,7 @@ public class EntityDef : ContentDef
 
     public int? NetID { get; set; } = null;
 
-    internal long? EntityID { get; set; } = null;
+    [JsonInclude] internal long? EntityID { get; set; } = null;
 
     public Entity Build(Scene scene)
     {
@@ -36,7 +38,7 @@ public class EntityDef : ContentDef
         };
 
         if(EntityID is not null)
-            Jelly.Tamperment.BTS.SetEntityID(entity, EntityID);
+            entity.SetEntityID(EntityID);
 
         if(Components is not null)
             entity.Components.Add(Components);
@@ -45,4 +47,16 @@ public class EntityDef : ContentDef
 
         return entity;
     }
+
+    public static explicit operator EntityDef(Entity entity) => new EntityDef
+    {
+        Enabled = entity.Enabled,
+        Position = entity.Position,
+        Visible = entity.Visible,
+        Components = [.. entity.Components],
+        Depth = entity.Depth,
+        Tag = entity.Tag,
+        NetID = entity.NetID,
+        EntityID = entity.EntityID,
+    };
 }

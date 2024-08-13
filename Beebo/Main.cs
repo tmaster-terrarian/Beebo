@@ -333,10 +333,10 @@ public class Main : Jelly.GameServer
             {
                 if(scene is not null)
                 {
-                    var json = scene.Serialize();
+                    var json = scene.Serialize(false);
                     Logger.Info(json);
                     var newScene = SceneDef.Deserialize(json);
-                    Logger.Info(newScene);
+                    Logger.Info(newScene.Serialize(false));
                 }
             }
         }
@@ -354,7 +354,7 @@ public class Main : Jelly.GameServer
                     scene?.End();
                     scene = nextScene;
                     OnSceneTransition(lastScene, nextScene);
-                    P2PManager.SendP2PPacketString(PacketType.SceneChange, nextScene.Name, PacketSendMethod.Reliable);
+                    P2PManager.SendP2PPacket(PacketType.SceneChange, GetSyncPacket(), PacketSendMethod.Reliable);
                 }
                 else if(!P2PManager.InLobby)
                 {

@@ -39,15 +39,7 @@ public class SceneDef : ContentDef
 
         foreach(var entity in _entities)
         {
-            list.Add(new EntityDef {
-                Enabled = entity.Enabled,
-                Position = entity.Position,
-                Visible = entity.Visible,
-                Components = [.. entity.Components],
-                Depth = entity.Depth,
-                Tag = entity.Tag,
-                NetID = entity.NetID,
-            });
+            list.Add((EntityDef)entity);
         }
 
         return list;
@@ -55,15 +47,21 @@ public class SceneDef : ContentDef
 
     public override string ToString()
     {
-        return Serialize();
+        return Serialize(true);
     }
 
-    public string Serialize()
+    public string Serialize(bool pretty = false)
     {
-        return JsonSerializer.Serialize(this, SceneRegistry.SerializerOptions);
+        var options = SceneRegistry.SerializerOptions;
+
+        options.WriteIndented = pretty;
+
+        var ret = JsonSerializer.Serialize(this, options);
+
+        return ret;
     }
 
-    public static SceneDef? Deserialize(string json)
+    public static SceneDef? Deserialize(string json, bool pretty = true)
     {
         return JsonSerializer.Deserialize<SceneDef>(json, SceneRegistry.SerializerOptions);
     }
