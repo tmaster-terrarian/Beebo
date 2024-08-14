@@ -19,7 +19,7 @@ public class SceneDef : ContentDef
 
         foreach(var e in Entities ?? [])
         {
-            e.Build(scene);
+            e.Create(scene);
         }
 
         return scene;
@@ -52,17 +52,33 @@ public class SceneDef : ContentDef
 
     public string Serialize(bool pretty = false)
     {
-        var options = SceneRegistry.SerializerOptions;
-
+        var options = RegistryManager.SerializerOptions;
         options.WriteIndented = pretty;
 
-        var ret = JsonSerializer.Serialize(this, options);
-
-        return ret;
+        return JsonSerializer.Serialize(this, options);
     }
 
-    public static SceneDef? Deserialize(string json, bool pretty = true)
+    public static SceneDef? Deserialize(string json)
     {
-        return JsonSerializer.Deserialize<SceneDef>(json, SceneRegistry.SerializerOptions);
+        return JsonSerializer.Deserialize<SceneDef>(json, RegistryManager.SerializerOptions);
+    }
+}
+
+public static class SceneExtensions
+{
+    public static string Serialize(this Scene scene, bool pretty = false)
+    {
+        var options = RegistryManager.SerializerOptions;
+        options.WriteIndented = pretty;
+
+        return JsonSerializer.Serialize((SceneDef)scene, options);
+    }
+
+    public static string Serialize(this Component component, bool pretty = false)
+    {
+        var options = RegistryManager.SerializerOptions;
+        options.WriteIndented = pretty;
+
+        return JsonSerializer.Serialize(component, options);
     }
 }

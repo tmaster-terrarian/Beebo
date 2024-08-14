@@ -78,7 +78,7 @@ public class Main : Jelly.GameServer
 
     public static bool PlayerControlsDisabled => ChatWindowOpen || Instance.Server || !Instance.IsActive;
 
-    public static string SaveDataPath => new PathBuilder{AppendFinalSeparator = true}.Create(PathBuilder.LocalAppdataPath, AppMetadata.Name);
+    public static string SaveDataPath => Path.Combine(PathBuilder.LocalAppdataPath, AppMetadata.Name);
     public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
 
     public static SpriteFont RegularFont { get; private set; }
@@ -155,8 +155,7 @@ public class Main : Jelly.GameServer
             }
         }
 
-        Registries.AddRegistry(new ComponentRegistry());
-        Registries.AddRegistry(new SceneRegistry());
+        RegistryManager.Init();
 
         Providers.Initialize(new BeeboNetworkProvider(), new BeeboContentProvider());
 
@@ -552,7 +551,7 @@ public class Main : Jelly.GameServer
         if(Scene?.Name == name)
             return;
 
-        if(!ChangeLocalScene(Registries.GetRegistry<SceneRegistry>().GetDef(name).Build()))
+        if(!ChangeLocalScene(Registries.FindFirst<SceneRegistry>().GetDef(name).Build()))
             return;
 
         if(updateLobby)
@@ -662,10 +661,7 @@ public class Main : Jelly.GameServer
                     var texture = new Texture2D(device, (int)width, (int)height, false, SurfaceFormat.Color);
                     texture.SetData(rgba, 0, rgba.Length);
 
-                    byte[] missingData = new byte[_missingProfile.Width * _missingProfile.Height * 4];
-                    _missingProfile.GetData(missingData);
-
-                    if(rgba == missingData)
+                    if(Util.TexturesRoughlyMatch(texture, _missingProfile, 0.9f, 0.05f))
                     {
                         AlreadyLoadedAvatars.Remove(cSteamID);
                         AlreadyLoadedAvatars.Add(cSteamID, DefaultSteamProfile);

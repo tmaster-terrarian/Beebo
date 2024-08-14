@@ -6,19 +6,14 @@ namespace Beebo.GameContent;
 
 public class ComponentRegistry : Registry<ComponentTypeDef>
 {
-    public static PolymorphicTypeResolver TypeResolver { get; } = new(typeof(Component));
+    public static TypeSet ComponentTypes => RegistryManager.TypeResolver.GetTypeSet(typeof(Component));
 
     public override void Init()
     {
         // AddType(typeof(TestComponent));
         // AddType(typeof(TestComponent2));
 
-        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-
-        if(assembly is not null)
-            TypeResolver.DerivedTypes = [..TypeResolver.DerivedTypes, ..TypeResolver.GetDerivedTypesFromAssembly(assembly)];
-
-        foreach(var type in TypeResolver.DerivedTypes)
+        foreach (var type in ComponentTypes.DerivedTypes)
         {
             Register(new ComponentTypeDef {
                 ComponentType = type,
@@ -26,6 +21,6 @@ public class ComponentRegistry : Registry<ComponentTypeDef>
             });
         }
 
-        Main.Logger.Info($"Registered Components:\n  - {string.Join("\n  - ", TypeResolver.DerivedTypes)}");
+        Main.Logger.Info($"Registered Components:\n  - {string.Join("\n  - ", ComponentTypes.DerivedTypes)}");
     }
 }

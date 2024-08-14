@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Beebo.GameContent;
 using Jelly.GameContent;
+using Jelly.Net;
 using Microsoft.Xna.Framework;
 using Steamworks;
 
@@ -92,7 +93,17 @@ public static class P2PManager
                         // set the part of the game state from data owned by the sender
                         // first byte is a Jelly.Net.SyncPacketType value
 
-                        Jelly.Providers.NetworkProvider.RaisePacketReceivedEvent(data);
+                        switch((SyncPacketType)data[0])
+                        {
+                            case SyncPacketType.EntityAdded:
+                            case SyncPacketType.ComponentAdded:
+                            case SyncPacketType.ComponentUpdate:
+                                BeeboNetworkProvider.PacketInterceptRead(data, GetMemberIndex(steamIDRemote));
+                                break;
+                            default:
+                                Jelly.Providers.NetworkProvider.RaisePacketReceivedEvent(data, GetMemberIndex(steamIDRemote));
+                                break;
+                        }
 
                         break;
                     }

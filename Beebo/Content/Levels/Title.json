@@ -35,8 +35,7 @@
       "enabled": true,
       "visible": true,
       "tag": 0,
-      "depth": 0,
-      "name": "EntityDef"
+      "depth": 0
     }
   ],
   "name": "Title"

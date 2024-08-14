@@ -1,17 +1,20 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 using Microsoft.Xna.Framework;
 
 using Jelly;
 using Jelly.GameContent;
+using Jelly.Serialization;
 using Jelly.Unsafe;
-using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace Beebo.GameContent;
 
+[JsonAutoPolymorphic]
 public class EntityDef : ContentDef
 {
-    [JsonIgnore] public new string Name { get; } = "EntityDef";
+    public new string Name { get; } = null;
 
     public IList<Component>? Components { get; set; }
 
@@ -29,7 +32,7 @@ public class EntityDef : ContentDef
 
     [JsonInclude] internal long? EntityID { get; set; } = null;
 
-    public Entity Build(Scene scene, bool skipSync = true)
+    public virtual Entity Create(Scene scene, bool skipSync = true)
     {
         var entity = new Entity(Position, NetID ?? -1)
         {
@@ -61,4 +64,28 @@ public class EntityDef : ContentDef
         NetID = entity.NetID,
         EntityID = entity.EntityID,
     };
+
+    public string Serialize(bool pretty = false)
+    {
+        var options = RegistryManager.SerializerOptions;
+        options.WriteIndented = pretty;
+
+        return JsonSerializer.Serialize(this, options);
+    }
+
+    public static EntityDef? Deserialize(string json)
+    {
+        return JsonSerializer.Deserialize<EntityDef>(json, RegistryManager.SerializerOptions);
+    }
+}
+
+public static class EntityExtensions
+{
+    public static string Serialize(this Entity scene, bool pretty = false)
+    {
+        var options = RegistryManager.SerializerOptions;
+        options.WriteIndented = pretty;
+
+        return JsonSerializer.Serialize((EntityDef)scene, options);
+    }
 }

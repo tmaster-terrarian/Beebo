@@ -12,29 +12,14 @@ namespace Beebo.GameContent;
 
 public class SceneRegistry : Registry<SceneDef>
 {
-    public static JsonSerializerOptions SerializerOptions => new()
-    {
-        Converters =
-        {
-            new JsonStringEnumConverter(),
-            new JsonPointConverter(),
-            new JsonVector2Converter(),
-        },
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        WriteIndented = true,
-        ReferenceHandler = ReferenceHandler.IgnoreCycles,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        TypeInfoResolver = ComponentRegistry.TypeResolver,
-    };
-
-    public static PolymorphicTypeResolver EntityDefTypeResolver { get; } = new(typeof(EntityDef));
-
-    public static Dictionary<string, SceneDef> DefsByName { get; } = [];
-
     public override void Init()
     {
-        var title = Add("Title");
+        string path = Path.Combine(Main.ProgramPath, "Content", "Levels");
+        foreach(var file in Directory.EnumerateFiles(path, "*.json", SearchOption.AllDirectories))
+        {
+            string fileName = file[(path.Length + 1)..^5];
+            Add(fileName);
+        }
 
         SceneDef test = new()
         {
@@ -47,17 +32,16 @@ public class SceneRegistry : Registry<SceneDef>
                     Visible = true,
                     Components = [
                         new SpriteComponent {
-                            TexturePath = "Images/UI/Multiplayer/DefaultProfileOld"
+                            TexturePath = "Images/UI/Multiplayer/DefaultProfile"
                         },
                     ]
                 }
             ]
         };
 
-        Register(test);
+        Main.Logger.Info($"Registered Scenes:\n  - {string.Join("\n  - ", this.Keys)}");
 
-        // Main.Logger.Info(title);
-        // Main.Logger.Info(test);
+        Register(test);
     }
 
     private SceneDef Add(string name)
@@ -65,7 +49,6 @@ public class SceneRegistry : Registry<SceneDef>
         var def = LoadFromFile(name);
         if(def is not null)
         {
-            DefsByName.Add(name, def);
             Register(def);
         }
         return def;
@@ -74,19 +57,5 @@ public class SceneRegistry : Registry<SceneDef>
     public static SceneDef? LoadFromFile(string path)
     {
         return SceneDef.Deserialize(File.ReadAllText(Path.Combine("Content", "Levels", path + ".json")));
-    }
-}
-
-public static class SceneExtensions
-{
-    public static string Serialize(this Scene scene, bool pretty = false)
-    {
-        var options = SceneRegistry.SerializerOptions;
-
-        options.WriteIndented = pretty;
-
-        var ret = JsonSerializer.Serialize((SceneDef)scene, options);
-
-        return ret;
     }
 }
