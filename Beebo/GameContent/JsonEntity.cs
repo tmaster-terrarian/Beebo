@@ -48,6 +48,9 @@ public class JsonEntity
         if(Components is not null)
             entity.Components.Add(Components);
 
+        if(skipSync)
+            entity.IgnoreNextSync();
+
         scene.Entities.Add(entity);
 
         return entity;

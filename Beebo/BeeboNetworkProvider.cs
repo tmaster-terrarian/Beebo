@@ -19,10 +19,7 @@ public class BeeboNetworkProvider : NetworkProvider
 
     public override int GetNetID() => Main.NetID;
 
-    public override int GetHostNetID()
-    {
-        return P2PManager.GetMemberIndex(P2PManager.GetLobbyOwner());
-    }
+    public override int GetHostNetID() => P2PManager.GetMemberIndex(P2PManager.GetLobbyOwner());
 
     public override void SendSyncPacket(SyncPacketType syncPacketType, byte[] data, bool important)
     {

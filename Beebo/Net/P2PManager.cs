@@ -83,6 +83,7 @@ public static class P2PManager
                             case FirstJoinPacketType.Sync:
                             {
                                 Main.ReadSyncPacket(data[1..]);
+                                Main.AddMyPlayer();
                                 break;
                             }
                         }
@@ -209,6 +210,8 @@ public static class P2PManager
             SteamManager.Logger.Info($"Leaving current lobby ({CurrentLobby.m_SteamID}) ...");
             HandleLobbyOwnerLeft();
 
+            Main.HandleLeavingLobby();
+
             foreach (var id in GetCurrentLobbyMembers())
             {
                 if (id != MyID)
@@ -222,8 +225,6 @@ public static class P2PManager
             Main.ChatHistory.Clear();
 
             SteamManager.Logger.Info($"Lobby left!");
-
-            Main.HandleLeavingLobby();
         }
     }
 

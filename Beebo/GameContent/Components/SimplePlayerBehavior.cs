@@ -42,6 +42,8 @@ public class SimplePlayerBehavior : Component
 
     public override void Update()
     {
+        Entity.MarkForSync();
+
         if(!CanUpdateLocally) return;
 
         Point input = new(

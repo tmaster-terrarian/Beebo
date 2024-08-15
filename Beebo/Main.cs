@@ -17,6 +17,7 @@ using Jelly.IO;
 
 using Steamworks;
 using System.Collections;
+using Jelly.Unsafe;
 
 namespace Beebo;
 
@@ -260,6 +261,16 @@ public class Main : Jelly.GameServer
                 scene?.Update();
                 scene?.PostUpdate();
             }
+
+            // lol
+            // P2PManager.SendP2PPacket(
+            //     PacketType.FirstJoin,
+            //     [
+            //         (byte)FirstJoinPacketType.Sync,
+            //         .. GetSyncPacket()
+            //     ],
+            //     PacketSendMethod.Unreliable
+            // );
         }
 
         if(ChatWindowOpen)
@@ -578,9 +589,25 @@ public class Main : Jelly.GameServer
             var lastScene = scene;
 
             scene?.End();
+
+            if(scene is not null)
+            {
+                scene.Entities.Remove(MyPlayer);
+
+                if(nextScene is null)
+                {
+                    MyPlayer = null;
+                }
+            }
+
             scene = nextScene;
 
-            MyPlayer = null;
+            if(MyPlayer is not null)
+            {
+                scene?.Entities.Add(MyPlayer);
+                MyPlayer.SetEntityID((long)P2PManager.MyID.m_SteamID);
+                MyPlayer.NetID = NetID;
+            }
 
             OnSceneTransition(lastScene, nextScene);
 
@@ -638,9 +665,25 @@ public class Main : Jelly.GameServer
 
         if(MyPlayer is not null)
         {
-            if(scene.Entities.Remove(MyPlayer))
+            MyPlayer.NetID = NetID;
+            MyPlayer.SetEntityID((long)P2PManager.MyID.m_SteamID);
+            return;
+        }
+        else foreach(var e in scene.Entities)
+        {
+            if(e.EntityID == MyPlayer?.EntityID)
             {
-                MyPlayer = null;
+                MyPlayer = e;
+                MyPlayer.NetID = NetID;
+                return;
+            }
+            else if(e.TagIncludes(1))
+            {
+                if(e.EntityID == (long)P2PManager.MyID.m_SteamID)
+                {
+                    MyPlayer = e;
+                    return;
+                }
             }
         }
 
@@ -648,10 +691,12 @@ public class Main : Jelly.GameServer
             Name = "SimplePlayer",
             NetID = NetID,
             Enabled = true,
-            Visible = true
+            Visible = true,
+            Tag = 1,
+            EntityID = (long)P2PManager.MyID.m_SteamID,
         };
 
-        MyPlayer = jsonEntity.Create(scene, false);
+        MyPlayer = jsonEntity.Create(scene, true);
         Registries.Get<EntityRegistry>()?.GetDef(jsonEntity.Name)?.OnCreate(MyPlayer);
     }
 
