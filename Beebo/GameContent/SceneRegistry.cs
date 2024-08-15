@@ -25,7 +25,7 @@ public class SceneRegistry : Registry<SceneDef>
         {
             Name = "Test",
             Entities = [
-                new EntityDef()
+                new JsonEntity()
                 {
                     Position = new(178, 182),
                     Enabled = true,

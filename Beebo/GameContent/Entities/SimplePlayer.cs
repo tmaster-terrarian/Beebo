@@ -1,4 +1,8 @@
+using Beebo.GameContent.Components;
+
 using Jelly;
+using Jelly.Components;
+using Microsoft.Xna.Framework;
 
 namespace Beebo.GameContent.Entities;
 
@@ -24,16 +28,24 @@ public class SimplePlayer : EntityDef
     // - Don't use MarkForSync more than you need to, especially not too many
     // reliable syncs, as they will likely slow the connection for everyone
     // in the multiplayer lobby.
-    // - Defining members / properties is pretty meaningless on an EntityDef
-    // unless you modify some of the backend logic directly, so it's best to do
-    // that with components instead.
 
-    public override Entity Create(Scene scene, bool skipSync = true)
+    public override void OnCreate(Entity entity)
     {
-        var entity = base.Create(scene, skipSync);
-
         // modify the entity here
 
-        return entity;
+        entity.Add(new SpriteComponent {
+            TexturePath = "Images/Entities/SimplePlayer/idle",
+            Pivot = new(16, 32),
+            Color = entity.NetID switch
+            {
+                0 => Color.Gold,
+                1 => Color.AliceBlue,
+                2 => Color.PaleGreen,
+                3 => Color.HotPink,
+                _ => Color.LightGray
+            },
+        });
+
+        entity.Add(new SimplePlayerBehavior());
     }
 }

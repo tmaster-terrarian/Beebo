@@ -8,7 +8,7 @@ namespace Beebo.GameContent;
 
 public class SceneDef : ContentDef
 {
-    public IList<EntityDef> Entities { get; set; } = [];
+    public IList<JsonEntity> Entities { get; set; } = [];
 
     public Scene Build()
     {
@@ -31,15 +31,15 @@ public class SceneDef : ContentDef
         Name = scene.Name,
     };
 
-    private static IList<EntityDef> GetEntityDefs(EntityList entities)
+    private static IList<JsonEntity> GetEntityDefs(EntityList entities)
     {
-        IList<EntityDef> list = [];
+        IList<JsonEntity> list = [];
 
         var _entities = entities.ToArray();
 
         foreach(var entity in _entities)
         {
-            list.Add((EntityDef)entity);
+            list.Add((JsonEntity)entity);
         }
 
         return list;

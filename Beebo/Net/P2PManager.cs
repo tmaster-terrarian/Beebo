@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Beebo.GameContent;
+using Beebo.GameContent.Entities;
 using Jelly.GameContent;
 using Jelly.Net;
 using Microsoft.Xna.Framework;
@@ -285,7 +286,10 @@ public static class P2PManager
         if(result.m_eResult == EResult.k_EResultOK)
             SteamManager.Logger.Info("Lobby created -- SUCCESS!");
         else
+        {
             SteamManager.Logger.Info("Lobby created -- failure ...");
+            return;
+        }
 
         string personalName = SteamFriends.GetPersonaName();
         var lobbyId = (CSteamID)result.m_ulSteamIDLobby;
@@ -403,6 +407,11 @@ public static class P2PManager
             }
 
             SendP2PPacket(GetLobbyOwner(), PacketType.FirstJoin, [(byte)FirstJoinPacketType.SyncRequest, ], PacketSendMethod.Reliable);
+
+            if(Main.IsHost)
+            {
+                Main.ChangeScene("Test", false);
+            }
 
             SteamManager.Logger.Info("Lobby joined!");
         }

@@ -9,10 +9,11 @@ namespace Beebo.GameContent;
 
 public static class RegistryManager
 {
-    public static ComponentRegistry ComponentRegistry { get; } = new ComponentRegistry();
-    public static SceneRegistry SceneRegistry { get; } = new SceneRegistry();
+    public static ComponentRegistry ComponentRegistry { get; } = new();
+    public static EntityRegistry EntityRegistry { get; } = new();
+    public static SceneRegistry SceneRegistry { get; } = new();
 
-    public static PolymorphicTypeResolver TypeResolver { get; } = new([typeof(Component), typeof(EntityDef)]);
+    public static PolymorphicTypeResolver TypeResolver { get; } = new([typeof(Component), typeof(JsonEntity)]);
 
     public static JsonSerializerOptions SerializerOptions => new()
     {
@@ -40,6 +41,7 @@ public static class RegistryManager
         }
 
         Registries.Add(ComponentRegistry);
+        Registries.Add(EntityRegistry);
         Registries.Add(SceneRegistry);
     }
 }

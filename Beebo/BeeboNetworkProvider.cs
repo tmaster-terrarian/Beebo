@@ -4,6 +4,7 @@ using Beebo.GameContent;
 using Beebo.Net;
 
 using Jelly;
+using Jelly.GameContent;
 using Jelly.Net;
 using Jelly.Unsafe;
 using Microsoft.Xna.Framework;
@@ -25,7 +26,10 @@ public class BeeboNetworkProvider : NetworkProvider
 
     public override void SendSyncPacket(SyncPacketType syncPacketType, byte[] data, bool important)
     {
-        switch(syncPacketType)
+        // PacketSendMethod packetSendMethod = important ? PacketSendMethod.Reliable : PacketSendMethod.Unreliable;
+        PacketSendMethod packetSendMethod = PacketSendMethod.Reliable;
+
+        switch (syncPacketType)
         {
             case SyncPacketType.EntityAdded: // 0x00:sceneId 0x08:entityId 0x10:..stringData
             {
@@ -54,7 +58,7 @@ public class BeeboNetworkProvider : NetworkProvider
                     buffer = [..data[..0x10], ..stream.GetBuffer()];
                 }
 
-                P2PManager.SendP2PPacket(PacketType.JellySync, [(byte)syncPacketType, ..buffer], important ? PacketSendMethod.Reliable : PacketSendMethod.Unreliable);
+                    P2PManager.SendP2PPacket(PacketType.JellySync, [(byte)syncPacketType, .. buffer], packetSendMethod);
                 break;
             }
             case SyncPacketType.ComponentAdded: // 0x00:sceneId 0x08:entityId 0x10:componentId 0x18:..stringData
@@ -91,11 +95,11 @@ public class BeeboNetworkProvider : NetworkProvider
                     buffer = [..data[..0x18], ..stream.GetBuffer()];
                 }
 
-                P2PManager.SendP2PPacket(PacketType.JellySync, [(byte)syncPacketType, ..buffer], important ? PacketSendMethod.Reliable : PacketSendMethod.Unreliable);
+                    P2PManager.SendP2PPacket(PacketType.JellySync, [(byte)syncPacketType, .. buffer], packetSendMethod);
                 break;
             }
             default:
-                P2PManager.SendP2PPacket(PacketType.JellySync, [(byte)syncPacketType, ..data], important ? PacketSendMethod.Reliable : PacketSendMethod.Unreliable);
+                P2PManager.SendP2PPacket(PacketType.JellySync, [(byte)syncPacketType, .. data], packetSendMethod);
                 break;
         }
     }
@@ -107,7 +111,9 @@ public class BeeboNetworkProvider : NetworkProvider
 
         var scene = Main.Scene;
 
-        switch((SyncPacketType)reader.ReadByte())
+        var TYPE = (SyncPacketType)reader.ReadByte();
+
+        switch(TYPE)
         {
             case SyncPacketType.EntityAdded:
             {
@@ -124,7 +130,14 @@ public class BeeboNetworkProvider : NetworkProvider
                     scene.Entities.Remove(entity);
                 }
 
-                entity = EntityDef.Deserialize(reader.ReadString())?.Create(scene);
+                var def = JsonEntity.Deserialize(reader.ReadString());
+                var e = def?.Create(scene);
+
+                if(def is not null && def.Name is not null)
+                {
+                    Registries.Get<EntityRegistry>()?.GetDef(def.Name)?.OnCreate(e);
+                }
+
                 break;
             }
             case SyncPacketType.ComponentAdded:
@@ -149,7 +162,9 @@ public class BeeboNetworkProvider : NetworkProvider
                     }
 
                     component = JsonSerializer.Deserialize<Component>(reader.ReadString(), RegistryManager.SerializerOptions);
-                    component.IgnoreNextSync();
+
+                    if(TYPE == SyncPacketType.ComponentUpdate)
+                        component.IgnoreNextSync();
 
                     entity.Add(component);
 

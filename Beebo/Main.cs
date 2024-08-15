@@ -56,6 +56,8 @@ public class Main : Jelly.GameServer
 
     public static Texture2D? DefaultSteamProfile { get; private set; }
 
+    public static Entity MyPlayer { get; private set; }
+
     /// <summary>
     /// The currently active Scene. Note that if set, the Scene will not actually change until the end of the Update
     /// </summary>
@@ -345,28 +347,22 @@ public class Main : Jelly.GameServer
             camera.Update();
 
             //Changing scenes
-            if(scene != nextScene)
+            if(scene != nextScene && !P2PManager.InLobby)
             {
-                if(IsHost)
-                {
-                    var lastScene = scene;
-                    scene?.End();
-                    scene = nextScene;
-                    OnSceneTransition(lastScene, nextScene);
-                    P2PManager.SendP2PPacket(PacketType.SceneChange, GetSyncPacket(), PacketSendMethod.Reliable);
-                }
-                else if(!P2PManager.InLobby)
-                {
-                    var lastScene = scene;
-                    scene?.End();
-                    scene = nextScene;
-                    OnSceneTransition(lastScene, nextScene);
-                    scene?.Begin();
-                }
-                else
-                {
-                    nextScene = scene;
-                }
+                var lastScene = scene;
+
+                scene?.End();
+                scene = nextScene;
+
+                MyPlayer = null;
+
+                OnSceneTransition(lastScene, nextScene);
+
+                Logger.Info($"Loaded scene {scene.Name}");
+
+                AddMyPlayer();
+
+                scene?.Begin();
             }
         }
 
@@ -551,7 +547,7 @@ public class Main : Jelly.GameServer
         if(Scene?.Name == name)
             return;
 
-        if(!ChangeLocalScene(Registries.FindFirst<SceneRegistry>().GetDef(name).Build()))
+        if(!ChangeLocalScene(Registries.Get<SceneRegistry>().GetDef(name).Build()))
             return;
 
         if(updateLobby)
@@ -580,10 +576,17 @@ public class Main : Jelly.GameServer
         if(scene != nextScene)
         {
             var lastScene = scene;
+
             scene?.End();
             scene = nextScene;
+
+            MyPlayer = null;
+
             OnSceneTransition(lastScene, nextScene);
+
             Logger.Info($"Loaded scene {newScene.Name}");
+
+            AddMyPlayer();
             return true;
         }
         return false;
@@ -593,6 +596,15 @@ public class Main : Jelly.GameServer
     {
         _playersConfirmed = 0;
         WaitingForAllReady = false;
+
+        if(MyPlayer is not null)
+        {
+            if(scene?.Entities.Remove(MyPlayer) ?? true)
+            {
+                MyPlayer = null;
+            }
+        }
+
         ChangeScene("Title", false);
         AlreadyLoadedAvatars.Clear();
     }
@@ -618,6 +630,29 @@ public class Main : Jelly.GameServer
         var newScene = SceneDef.Deserialize(json);
         ChangeLocalScene(newScene?.Build());
         scene?.Subscribe();
+    }
+
+    public static void AddMyPlayer()
+    {
+        if(scene is null) return;
+
+        if(MyPlayer is not null)
+        {
+            if(scene.Entities.Remove(MyPlayer))
+            {
+                MyPlayer = null;
+            }
+        }
+
+        var jsonEntity = new JsonEntity {
+            Name = "SimplePlayer",
+            NetID = NetID,
+            Enabled = true,
+            Visible = true
+        };
+
+        MyPlayer = jsonEntity.Create(scene, false);
+        Registries.Get<EntityRegistry>()?.GetDef(jsonEntity.Name)?.OnCreate(MyPlayer);
     }
 
     protected override void OnActivated(object sender, EventArgs args)
