@@ -1,13 +1,12 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Microsoft.Xna.Framework;
 
 using Jelly;
-using Jelly.GameContent;
 using Jelly.Serialization;
 using Jelly.Unsafe;
-using System.Text.Json;
 
 namespace Beebo.GameContent;
 
@@ -24,7 +23,7 @@ public class JsonEntity
 
     public bool Visible { get; set; } = true;
 
-    public int? Tag { get; set; } = null;
+    public uint? Tag { get; set; } = null;
 
     public int? Depth { get; set; } = null;
 
@@ -38,7 +37,7 @@ public class JsonEntity
         {
             Enabled = Enabled,
             Visible = Visible,
-            Tag = Tag ?? 0,
+            Tag = (Tag)(Tag ?? 0),
             Depth = Depth ?? 0,
         };
 
@@ -63,7 +62,7 @@ public class JsonEntity
         Visible = entity.Visible,
         Components = [.. entity.Components],
         Depth = entity.Depth,
-        Tag = entity.Tag,
+        Tag = entity.Tag.Bitmask,
         NetID = entity.NetID,
         EntityID = entity.EntityID,
     };

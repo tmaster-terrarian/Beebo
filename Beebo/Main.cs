@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
@@ -14,10 +15,10 @@ using Jelly.Coroutines;
 using Jelly.GameContent;
 using Jelly.Graphics;
 using Jelly.IO;
+using Jelly.Unsafe;
+using Jelly.Utilities;
 
 using Steamworks;
-using System.Collections;
-using Jelly.Unsafe;
 
 namespace Beebo;
 
@@ -677,7 +678,7 @@ public class Main : Jelly.GameServer
                 MyPlayer.NetID = NetID;
                 return;
             }
-            else if(e.TagIncludes(1))
+            else if(e.Tag.Matches((Tag)1, TagFilter.AtLeastOne))
             {
                 if(e.EntityID == (long)P2PManager.MyID.m_SteamID)
                 {

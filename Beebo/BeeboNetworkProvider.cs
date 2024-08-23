@@ -155,7 +155,7 @@ public class BeeboNetworkProvider : NetworkProvider
                     if(entity.Components.FindByID(componentId) is Component component)
                     {
                         component.IgnoreNextSync();
-                        entity.Remove(component);
+                        entity.Components.Remove(component);
                     }
 
                     component = JsonSerializer.Deserialize<Component>(reader.ReadString(), RegistryManager.SerializerOptions);
@@ -163,7 +163,7 @@ public class BeeboNetworkProvider : NetworkProvider
                     if(TYPE == SyncPacketType.ComponentUpdate)
                         component.IgnoreNextSync();
 
-                    entity.Add(component);
+                    entity.Components.Add(component);
 
                     component.ReadPacket(data[(int)stream.Position..]);
                 }

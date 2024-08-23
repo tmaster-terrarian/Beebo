@@ -33,7 +33,7 @@ public class SimplePlayer : EntityDef
     {
         // modify the entity here
 
-        entity.Add(new SpriteComponent {
+        entity.Components.Add(new SpriteComponent {
             TexturePath = "Images/Entities/SimplePlayer/idle",
             Pivot = new(16, 32),
             Color = entity.NetID switch
@@ -46,6 +46,6 @@ public class SimplePlayer : EntityDef
             },
         });
 
-        entity.Add(new SimplePlayerBehavior());
+        entity.Components.Add(new SimplePlayerBehavior());
     }
 }
