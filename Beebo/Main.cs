@@ -15,8 +15,6 @@ using Jelly.Coroutines;
 using Jelly.GameContent;
 using Jelly.Graphics;
 using Jelly.IO;
-using Jelly.Unsafe;
-using Jelly.Utilities;
 
 using Steamworks;
 
@@ -54,8 +52,6 @@ public class Main : Jelly.GameServer
 
     public static List<Tuple<string, Color>> ChatHistory { get; } = [];
 
-    public static bool WaitingForAllReady { get; set; }
-
     public static Texture2D? DefaultSteamProfile { get; private set; }
 
     public static Entity MyPlayer { get; private set; }
@@ -63,15 +59,11 @@ public class Main : Jelly.GameServer
     /// <summary>
     /// The currently active Scene. Note that if set, the Scene will not actually change until the end of the Update
     /// </summary>
-    public static Scene Scene
-    {
+    public static Scene Scene {
         get => scene;
-        set
-        {
+        set {
             if(!ReferenceEquals(scene, value))
-            {
                 nextScene = value;
-            }
         }
     }
 
@@ -99,7 +91,7 @@ public class Main : Jelly.GameServer
     {
         public static bool Enabled { get; set; }
 
-        public static bool LogToChat { get; set; } = true;
+        public static bool LogToChat { get; set; }
     }
 
     public Main() : base()
@@ -161,7 +153,7 @@ public class Main : Jelly.GameServer
 
         RegistryManager.Init();
 
-        Providers.Initialize(new BeeboNetworkProvider(), new BeeboContentProvider());
+        Providers.Initialize(new BeeboContentProvider());
 
         if(!Server) base.Initialize();
         else LoadContent();
@@ -169,55 +161,61 @@ public class Main : Jelly.GameServer
 
     protected override void LoadContent()
     {
-        if(!Server)
+        // server + client resources
+
+        if(Server) return;
+
+        // client resources
+
+        Renderer.LoadContent(Content);
+
+        RegularFont = Content.Load<SpriteFont>("Fonts/default");
+        RegularFontBold = Content.Load<SpriteFont>("Fonts/defaultBold");
+
+        DefaultSteamProfile = Content.Load<Texture2D>("Images/UI/Multiplayer/DefaultProfile");
+
+        if(SteamManager.IsSteamRunning)
         {
-            Renderer.LoadContent(Content);
+            var binReader = File.OpenRead(Path.Combine(ProgramPath, "Content", "Images", "UI", "Multiplayer", "MissingProfile.bin"));
+            byte[] buffer = new byte[64 * 64 * 4];
 
-            RegularFont = Content.Load<SpriteFont>("Fonts/default");
-            RegularFontBold = Content.Load<SpriteFont>("Fonts/defaultBold");
+            binReader.Read(buffer, 0, buffer.Length);
+            binReader.Dispose();
 
-            DefaultSteamProfile = Content.Load<Texture2D>("Images/UI/Multiplayer/DefaultProfile");
-
-            if(SteamManager.IsSteamRunning)
-            {
-                var binReader = File.OpenRead(Path.Combine(ProgramPath, "Content", "Images", "UI", "Multiplayer", "MissingProfile.bin"));
-                byte[] buffer = new byte[64 * 64 * 4];
-
-                binReader.Read(buffer, 0, buffer.Length);
-                binReader.Dispose();
-
-                _missingProfile = new Texture2D(GraphicsDevice, 64, 64, false, SurfaceFormat.Color);
-                _missingProfile.SetData(buffer);
-            }
+            _missingProfile = new Texture2D(GraphicsDevice, 64, 64, false, SurfaceFormat.Color);
+            _missingProfile.SetData(buffer);
         }
     }
 
     protected override void BeginRun()
     {
+        ChangeScene("Title");
+
         if(SteamManager.IsSteamRunning)
         {
             SteamAPI.RunCallbacks();
 
-            if(Server)
-                P2PManager.CreateLobby(LobbyType.Public, 5);
-            else
-            {
-                if(Program.LobbyToJoin != 0)
-                {
-                    P2PManager.JoinLobby((CSteamID)Program.LobbyToJoin);
-                    Program.LobbyToJoin = 0;
-                }
-                else
-                {
-                    ChangeScene("Title");
-                }
-            }
+            // if(Server)
+            //     P2PManager.CreateLobby(LobbyType.Public, 5);
+            // else
+            // {
+            //     if(Program.LobbyToJoin != 0)
+            //     {
+            //         P2PManager.JoinLobby((CSteamID)Program.LobbyToJoin);
+            //         Program.LobbyToJoin = 0;
+            //     }
+            //     else
+            //     {
+            //         ChangeScene("Title");
+            //     }
+            // }
         }
     }
 
     protected override void Update(GameTime gameTime)
     {
-        Providers.SetDeltaTime((float)gameTime.ElapsedGameTime.TotalSeconds);
+        var delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        Providers.SetDeltaTime(delta);
 
         if(!Server)
         {
@@ -247,31 +245,18 @@ public class Main : Jelly.GameServer
         if(SteamManager.IsSteamRunning)
         {
             SteamAPI.RunCallbacks();
-            P2PManager.ReadAvailablePackets();
+            // P2PManager.ReadAvailablePackets();
         }
 
-        GlobalCoroutineRunner.Update(Providers.DeltaTime);
+        GlobalCoroutineRunner.Update(delta);
 
-        if(!WaitingForAllReady)
+        if(FreezeTimer > 0)
+            FreezeTimer = Math.Max(FreezeTimer - Providers.DeltaTime, 0);
+        else
         {
-            if(FreezeTimer > 0)
-                FreezeTimer = Math.Max(FreezeTimer - Providers.DeltaTime, 0);
-            else
-            {
-                scene?.PreUpdate();
-                scene?.Update();
-                scene?.PostUpdate();
-            }
-
-            // lol
-            // P2PManager.SendP2PPacket(
-            //     PacketType.FirstJoin,
-            //     [
-            //         (byte)FirstJoinPacketType.Sync,
-            //         .. GetSyncPacket()
-            //     ],
-            //     PacketSendMethod.Unreliable
-            // );
+            scene?.PreUpdate();
+            scene?.Update();
+            scene?.PostUpdate();
         }
 
         if(ChatWindowOpen)
@@ -280,7 +265,7 @@ public class Main : Jelly.GameServer
             bool backspace = input.Remove('\x127');
 
             ChatInput += string.Join(null, input);
-            ChatInput = ChatInput[..MathHelper.Min(ChatInput.Length, 4095)];
+            ChatInput = ChatInput[..MathHelper.Min(ChatInput.Length, 4096)];
 
             if(backspace && ChatInput.Length > 0)
             {
@@ -293,89 +278,33 @@ public class Main : Jelly.GameServer
             ChatWindowOpen = !ChatWindowOpen;
             if(!ChatWindowOpen && ChatInput.Length > 0)
             {
-                string message = ChatInput[..MathHelper.Min(ChatInput.Length, 4095)];
+                string message = ChatInput[..MathHelper.Min(ChatInput.Length, 4096)];
 
                 WriteChatMessage(message, (!SteamManager.IsSteamRunning) ? CSteamID.Nil : P2PManager.MyID, false);
-                P2PManager.SendP2PPacketString(PacketType.ChatMessage, message, PacketSendMethod.Reliable);
                 ChatInput = "";
             }
         }
 
-        if(!ChatWindowOpen && !WaitingForAllReady)
+        if(!ChatWindowOpen)
         {
-            if(Input.GetPressed(Keys.C))
-            {
-                P2PManager.CreateLobby(LobbyType.FriendsOnly);
-            }
-
-            if(Input.GetPressed(Keys.L))
-            {
-                if(Input.GetDown(Keys.LeftControl))
-                {
-                    P2PManager.LeaveLobby();
-                }
-                else
-                {
-                    SteamManager.Logger.Info("Trying to get list of available lobbies ...");
-                    SteamAPICall_t try_getList = SteamMatchmaking.RequestLobbyList();
-                }
-            }
-
-            if(Input.GetPressed(Keys.J))
-            {
-                SteamManager.Logger.Info("Trying to join FIRST listed lobby ...");
-                P2PManager.JoinLobby(SteamMatchmaking.GetLobbyByIndex(0));
-            }
-
-            if(Input.GetPressed(Keys.Q))
-            {
-                P2PManager.GetCurrentLobbyMembers(true);
-            }
-
-            if(Input.GetPressed(Keys.F1))
-            {
-                SteamFriends.ActivateGameOverlayInviteDialog(P2PManager.CurrentLobby);
-            }
-
-            if(Input.GetPressed(Keys.F2) && P2PManager.InLobby && IsHost)
-            {
-                ChangeScene("Test", true);
-            }
-
-            if(Input.GetPressed(Keys.F3))
-            {
-                if(scene is not null)
-                {
-                    var json = scene.Serialize(false);
-                    Logger.Info(json);
-                    var newScene = SceneDef.Deserialize(json);
-                    Logger.Info(newScene.Serialize(false));
-                }
-            }
+            // if(Input.GetPressed(Keys.F3))
+            // {
+            //     if(scene is not null)
+            //     {
+            //         var json = scene.Serialize(false);
+            //         Logger.Info(json);
+            //         var newScene = SceneDef.Deserialize(json);
+            //         Logger.Info(newScene.Serialize(false));
+            //     }
+            // }
         }
 
-        if(!WaitingForAllReady)
+        camera.Update();
+
+        //Changing scenes
+        if(ChangeLocalScene(nextScene))
         {
-            camera.Update();
-
-            //Changing scenes
-            if(scene != nextScene && !P2PManager.InLobby)
-            {
-                var lastScene = scene;
-
-                scene?.End();
-                scene = nextScene;
-
-                MyPlayer = null;
-
-                OnSceneTransition(lastScene, nextScene);
-
-                Logger.Info($"Loaded scene {scene.Name}");
-
-                AddMyPlayer();
-
-                scene?.Begin();
-            }
+            scene?.Begin();
         }
 
         base.Update(gameTime);
@@ -402,30 +331,31 @@ public class Main : Jelly.GameServer
 
         scene?.DrawUI();
 
-        if(SteamManager.IsSteamRunning)
-        {
-            var members = P2PManager.GetCurrentLobbyMembers();
-            if(members.Count > 0)
-            {
-                for(int i = 0; i < members.Count; i++)
-                {
-                    CSteamID member = members[i];
+        // // profiles
+        // if(SteamManager.IsSteamRunning)
+        // {
+        //     var members = P2PManager.GetCurrentLobbyMembers();
+        //     if(members.Count > 0)
+        //     {
+        //         for(int i = 0; i < members.Count; i++)
+        //         {
+        //             CSteamID member = members[i];
 
-                    var texture = GetMediumSteamAvatar(member);
-                    Renderer.SpriteBatch.Draw(texture, new Vector2(2 + (66 * i), 2), Color.White);
+        //             var texture = GetMediumSteamAvatar(member);
+        //             Renderer.SpriteBatch.Draw(texture, new Vector2(2 + (66 * i), 2), Color.White);
 
-                    var name = SteamFriends.GetFriendPersonaName(member);
+        //             var name = SteamFriends.GetFriendPersonaName(member);
 
-                    Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, name, new Vector2(2 + (66 * i), 2) + Vector2.UnitY * 64, Color.White, 4);
+        //             Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, name, new Vector2(2 + (66 * i), 2) + Vector2.UnitY * 64, Color.White, 4);
 
-                    if(P2PManager.GetLobbyOwner() == member)
-                        Renderer.SpriteBatch.Draw(Content.Load<Texture2D>("Images/UI/Multiplayer/Crown"), new Vector2(2 + (66 * i), 2) + Vector2.UnitY * (64 + 3) + Vector2.UnitX * (1 + RegularFont.MeasureString(name).X), Color.White);
-                }
-            }
+        //             if(P2PManager.GetLobbyOwner() == member)
+        //                 Renderer.SpriteBatch.Draw(Content.Load<Texture2D>("Images/UI/Multiplayer/Crown"), new Vector2(2 + (66 * i), 2) + Vector2.UnitY * (64 + 3) + Vector2.UnitX * (1 + RegularFont.MeasureString(name).X), Color.White);
+        //         }
+        //     }
 
-            Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
-            Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
-        }
+        //     Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
+        //     Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
+        // }
 
         if(ChatWindowOpen || chatAlpha > 0)
         {
@@ -503,18 +433,9 @@ public class Main : Jelly.GameServer
             case ReadinessReason.WaitForSceneLoad:
             {
                 Logger.Info("All players have finished loading, beginning scene");
-                P2PManager.SendP2PPacket(PacketType.CallbackResponse, [(byte)CallbackPacketType.SceneChange], PacketSendMethod.Reliable);
                 scene?.Begin();
                 break;
             }
-        }
-    }
-
-    public static void PlayerReady(CSteamID steamIDRemote)
-    {
-        if(WaitingForAllReady)
-        {
-            _playersConfirmed++;
         }
     }
 
@@ -548,38 +469,18 @@ public class Main : Jelly.GameServer
 
     private static void OnSceneTransition(Scene from, Scene to)
     {
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-
         to.TimeScale = 1f;
     }
 
-    internal static void ChangeScene(string name, bool updateLobby = false)
+    internal static void ChangeScene(string name)
     {
-        if(Scene?.Name == name)
+        if(scene?.Name == name)
             return;
 
         if(!ChangeLocalScene(Registries.Get<SceneRegistry>().GetDef(name).Build()))
             return;
 
-        if(updateLobby)
-        {
-            P2PManager.SendP2PPacketString(PacketType.SceneChange, name, PacketSendMethod.Reliable);
-
-            _playersConfirmed = 0;
-            WaitingForAllReady = true;
-
-            if(GlobalCoroutineRunner.IsRunning(nameof(WaitForConfirmation)))
-                GlobalCoroutineRunner.Stop(nameof(WaitForConfirmation));
-            GlobalCoroutineRunner.Run(nameof(WaitForConfirmation), WaitForConfirmation(ReadinessReason.WaitForSceneLoad));
-
-            Logger.Info("Waiting for everyone to load...");
-        }
-        else
-        {
-            WaitingForAllReady = false;
-            scene?.Begin();
-        }
+        scene?.Begin();
     }
 
     private static bool ChangeLocalScene(Scene newScene)
@@ -591,30 +492,13 @@ public class Main : Jelly.GameServer
 
             scene?.End();
 
-            if(scene is not null)
-            {
-                scene.Entities.Remove(MyPlayer);
-
-                if(nextScene is null)
-                {
-                    MyPlayer = null;
-                }
-            }
-
             scene = nextScene;
 
-            if(MyPlayer is not null)
-            {
-                scene?.Entities.Add(MyPlayer);
-                MyPlayer.SetEntityID((long)P2PManager.MyID.m_SteamID);
-                MyPlayer.NetID = NetID;
-            }
-
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
             OnSceneTransition(lastScene, nextScene);
 
             Logger.Info($"Loaded scene {newScene.Name}");
-
-            AddMyPlayer();
             return true;
         }
         return false;
@@ -623,18 +507,8 @@ public class Main : Jelly.GameServer
     public static void HandleLeavingLobby()
     {
         _playersConfirmed = 0;
-        WaitingForAllReady = false;
 
-        if(MyPlayer is not null)
-        {
-            if(scene?.Entities.Remove(MyPlayer) ?? true)
-            {
-                MyPlayer = null;
-            }
-        }
-
-        ChangeScene("Title", false);
-        AlreadyLoadedAvatars.Clear();
+        ChangeScene("Title");
     }
 
     public static byte[] GetSyncPacket()
@@ -649,56 +523,15 @@ public class Main : Jelly.GameServer
 
     public static void ReadSyncPacket(byte[] data)
     {
-        using var stream = new MemoryStream(data);
-        var binaryReader = new BinaryReader(stream);
+        // using var stream = new MemoryStream(data);
+        // var binaryReader = new BinaryReader(stream);
 
-        var json = binaryReader.ReadString();
-        Logger.Info(json);
+        // var json = binaryReader.ReadString();
+        // Logger.Info(json);
 
-        var newScene = SceneDef.Deserialize(json);
-        ChangeLocalScene(newScene?.Build());
-        scene?.Subscribe();
-    }
-
-    public static void AddMyPlayer()
-    {
-        if(scene is null) return;
-
-        if(MyPlayer is not null)
-        {
-            MyPlayer.NetID = NetID;
-            MyPlayer.SetEntityID((long)P2PManager.MyID.m_SteamID);
-            return;
-        }
-        else foreach(var e in scene.Entities)
-        {
-            if(e.EntityID == MyPlayer?.EntityID)
-            {
-                MyPlayer = e;
-                MyPlayer.NetID = NetID;
-                return;
-            }
-            else if(e.Tag.Matches((Tag)1, TagFilter.AtLeastOne))
-            {
-                if(e.EntityID == (long)P2PManager.MyID.m_SteamID)
-                {
-                    MyPlayer = e;
-                    return;
-                }
-            }
-        }
-
-        var jsonEntity = new JsonEntity {
-            Name = "SimplePlayer",
-            NetID = NetID,
-            Enabled = true,
-            Visible = true,
-            Tag = 1,
-            EntityID = (long)P2PManager.MyID.m_SteamID,
-        };
-
-        MyPlayer = jsonEntity.Create(scene, true);
-        Registries.Get<EntityRegistry>()?.GetDef(jsonEntity.Name)?.OnCreate(MyPlayer);
+        // var newScene = SceneDef.Deserialize(json);
+        // ChangeLocalScene(newScene?.Build());
+        // scene?.Subscribe();
     }
 
     protected override void OnActivated(object sender, EventArgs args)
@@ -759,19 +592,6 @@ public class Main : Jelly.GameServer
         AlreadyLoadedAvatars.Remove(cSteamID);
         AlreadyLoadedAvatars.Add(cSteamID, DefaultSteamProfile);
         return DefaultSteamProfile;
-    }
-
-    static IEnumerator WaitForConfirmation(ReadinessReason readinessReason)
-    {
-        while(_playersConfirmed + 1 < P2PManager.PlayerCount)
-        {
-            WaitingForAllReady = true;
-            yield return null;
-        }
-
-        WaitingForAllReady = false;
-        OnPlayersReady(readinessReason);
-        _playersConfirmed = 0;
     }
 
     static float chatAlpha;

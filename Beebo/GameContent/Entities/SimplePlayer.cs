@@ -36,14 +36,6 @@ public class SimplePlayer : EntityDef
         entity.Components.Add(new SpriteComponent {
             TexturePath = "Images/Entities/SimplePlayer/idle",
             Pivot = new(16, 32),
-            Color = entity.NetID switch
-            {
-                0 => Color.Gold,
-                1 => Color.AliceBlue,
-                2 => Color.PaleGreen,
-                3 => Color.HotPink,
-                _ => Color.LightGray
-            },
         });
 
         entity.Components.Add(new SimplePlayerBehavior());

@@ -83,32 +83,31 @@ public static class P2PManager
                             case FirstJoinPacketType.Sync:
                             {
                                 Main.ReadSyncPacket(data[1..]);
-                                Main.AddMyPlayer();
                                 break;
                             }
                         }
 
                         break;
                     }
-                    case PacketType.JellySync:
-                    {
-                        // set the part of the game state from data owned by the sender
-                        // first byte is a Jelly.Net.SyncPacketType value
+                    // case PacketType.JellySync:
+                    // {
+                    //     // set the part of the game state from data owned by the sender
+                    //     // first byte is a Jelly.Net.SyncPacketType value
 
-                        switch((SyncPacketType)data[0])
-                        {
-                            case SyncPacketType.EntityAdded:
-                            case SyncPacketType.ComponentAdded:
-                            case SyncPacketType.ComponentUpdate:
-                                BeeboNetworkProvider.PacketInterceptRead(data, GetMemberIndex(steamIDRemote));
-                                break;
-                            default:
-                                Jelly.Providers.NetworkProvider.RaisePacketReceivedEvent(data, GetMemberIndex(steamIDRemote));
-                                break;
-                        }
+                    //     switch((SyncPacketType)data[0])
+                    //     {
+                    //         case SyncPacketType.EntityAdded:
+                    //         case SyncPacketType.ComponentAdded:
+                    //         case SyncPacketType.ComponentUpdate:
+                    //             BeeboNetworkProvider.PacketInterceptRead(data, GetMemberIndex(steamIDRemote));
+                    //             break;
+                    //         default:
+                    //             Jelly.Providers.NetworkProvider.RaisePacketReceivedEvent(data, GetMemberIndex(steamIDRemote));
+                    //             break;
+                    //     }
 
-                        break;
-                    }
+                    //     break;
+                    // }
                     case PacketType.ChatMessage:
                     {
                         Main.WriteChatMessage(dataString, steamIDRemote);
@@ -122,7 +121,6 @@ public static class P2PManager
                     case PacketType.SceneChange:
                     {
                         Main.ReadSyncPacket(data[1..]);
-                        Main.WaitingForAllReady = true;
                         SendP2PPacket(steamIDRemote, PacketType.CallbackRequest, [(byte)CallbackPacketType.SceneChange], PacketSendMethod.Reliable);
                         break;
                     }
@@ -132,7 +130,6 @@ public static class P2PManager
                         {
                             case CallbackPacketType.SceneChange:
                             {
-                                Main.PlayerReady(steamIDRemote);
                                 Main.Logger.Info($"{SteamFriends.GetFriendPersonaName(steamIDRemote)} ({steamIDRemote}) has loaded");
                                 break;
                             }
@@ -146,7 +143,6 @@ public static class P2PManager
                             case CallbackPacketType.SceneChange:
                             {
                                 Main.Logger.Info("All players have finished loading, beginning scene");
-                                Main.WaitingForAllReady = false;
                                 Main.Scene?.Begin();
                                 break;
                             }
@@ -411,7 +407,7 @@ public static class P2PManager
 
             if(Main.IsHost)
             {
-                Main.ChangeScene("Test", false);
+                Main.ChangeScene("Test");
             }
 
             SteamManager.Logger.Info("Lobby joined!");

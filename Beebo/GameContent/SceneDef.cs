@@ -12,8 +12,7 @@ public class SceneDef : ContentDef
 
     public Scene Build()
     {
-        var scene = new Scene(Name.GetHashCode())
-        {
+        var scene = new Scene {
             Name = Name,
         };
 

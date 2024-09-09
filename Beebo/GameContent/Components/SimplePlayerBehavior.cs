@@ -1,11 +1,7 @@
 using System;
 using System.Text.Json.Serialization;
-using Beebo.Net;
 using Jelly;
-using Jelly.Components;
-using Jelly.Graphics;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace Beebo.GameContent.Components;
 
@@ -16,8 +12,6 @@ public class SimplePlayerBehavior : Component
 
     private readonly PlayerInputMapping inputMapping = new();
 
-    private const string ArrowTexturePath = "Images/Entities/SimplePlayer/arrow";
-
     [JsonInclude] private Vector2 velocity = Vector2.Zero;
 
     public float MaxSpeed { get; set; } = 4;
@@ -26,13 +20,7 @@ public class SimplePlayerBehavior : Component
     public Vector2 Velocity
     {
         get => velocity;
-        set {
-            if(velocity != value)
-            {
-                velocity = value;
-                MarkForSync();
-            }
-        }
+        set => velocity = value;
     }
 
     public override void Added(Entity entity)
@@ -42,10 +30,6 @@ public class SimplePlayerBehavior : Component
 
     public override void Update()
     {
-        Entity.MarkForSync();
-
-        if(!CanUpdateLocally) return;
-
         Point input = new(
             inputMapping.Right.IsDown.ToInt32() - inputMapping.Left.IsDown.ToInt32(),
             inputMapping.Down.IsDown.ToInt32() - inputMapping.Up.IsDown.ToInt32()
@@ -138,41 +122,6 @@ public class SimplePlayerBehavior : Component
                 Entity.Y += sign;
                 move -= sign;
             }
-        }
-    }
-
-    public override void DrawUI()
-    {
-        base.DrawUI();
-
-        // dont want to draw arrows pointing to other players if there are no other players
-        if(!P2PManager.InLobby)
-            return;
-
-        foreach(var e in Scene.Entities)
-        {
-            if(e.Components.Get<SimplePlayerBehavior>() is null) continue;
-            if(!e.Enabled) continue;
-
-            if(e.EntityID == Entity.EntityID) continue;
-
-            Color color = Color.LightGray;
-            if(e.Components.Get<SpriteComponent>() is SpriteComponent spriteComponent)
-            {
-                color = spriteComponent.Color;
-            }
-
-            Renderer.SpriteBatch.Draw(
-                Main.LoadContent<Texture2D>(ArrowTexturePath),
-                Entity.Position.ToVector2() - Vector2.UnitY * 14,
-                null,
-                color,
-                (e.Position.ToVector2() - Entity.Position.ToVector2()).ToRotation(),
-                new(16, 16),
-                1,
-                SpriteEffects.None,
-                0
-            );
         }
     }
 }

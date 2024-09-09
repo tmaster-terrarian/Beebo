@@ -6,7 +6,6 @@ using Microsoft.Xna.Framework;
 
 using Jelly;
 using Jelly.Serialization;
-using Jelly.Unsafe;
 
 namespace Beebo.GameContent;
 
@@ -27,28 +26,23 @@ public class JsonEntity
 
     public int? Depth { get; set; } = null;
 
-    public int? NetID { get; set; } = null;
-
     [JsonInclude] internal long? EntityID { get; set; } = null;
 
     public Entity Create(Scene scene, bool skipSync = true)
     {
-        var entity = new Entity(Position, NetID ?? -1)
+        var entity = new Entity(Position)
         {
             Enabled = Enabled,
             Visible = Visible,
             Tag = (Tag)(Tag ?? 0),
-            Depth = Depth ?? 0,
+            Depth = Depth ?? 0
         };
 
         if(EntityID is not null)
-            entity.SetEntityID(EntityID);
+            entity.EntityID = EntityID.Value;
 
         if(Components is not null)
             entity.Components.Add(Components);
-
-        if(skipSync)
-            entity.IgnoreNextSync();
 
         scene.Entities.Add(entity);
 
@@ -63,7 +57,6 @@ public class JsonEntity
         Components = [.. entity.Components],
         Depth = entity.Depth,
         Tag = entity.Tag.Bitmask,
-        NetID = entity.NetID,
         EntityID = entity.EntityID,
     };
 
