@@ -25,15 +25,11 @@ public class Main : Jelly.GameServer
     private static Scene scene;
     private static Scene nextScene;
 
-    private static int _playersConfirmed = 0;
-
-    private static Texture2D _missingProfile;
-
     internal static Main Instance { get; private set; } = null;
 
     public static Logger Logger { get; } = new("Main");
 
-    public static ulong Ticks { get; private set; }
+    public static ulong TotalFrames { get; private set; }
 
     public static CoroutineRunner GlobalCoroutineRunner { get; } = new();
 
@@ -70,7 +66,7 @@ public class Main : Jelly.GameServer
     public static float FreezeTimer { get; set; }
 
     public static bool ChatWindowOpen { get; private set; } = false;
-    public static string ChatInput { get; private set; } = "";
+    public static string CurrentChatInput { get; private set; } = "";
 
     public static bool PlayerControlsDisabled => ChatWindowOpen || Instance.Server || !Instance.IsActive;
 
@@ -153,7 +149,7 @@ public class Main : Jelly.GameServer
 
         RegistryManager.Init();
 
-        Providers.Initialize(new BeeboContentProvider());
+        JellyBackend.Initialize(new BeeboContentProvider());
 
         if(!Server) base.Initialize();
         else LoadContent();
@@ -173,18 +169,6 @@ public class Main : Jelly.GameServer
         RegularFontBold = Content.Load<SpriteFont>("Fonts/defaultBold");
 
         DefaultSteamProfile = Content.Load<Texture2D>("Images/UI/Multiplayer/DefaultProfile");
-
-        if(SteamManager.IsSteamRunning)
-        {
-            var binReader = File.OpenRead(Path.Combine(ProgramPath, "Content", "Images", "UI", "Multiplayer", "MissingProfile.bin"));
-            byte[] buffer = new byte[64 * 64 * 4];
-
-            binReader.Read(buffer, 0, buffer.Length);
-            binReader.Dispose();
-
-            _missingProfile = new Texture2D(GraphicsDevice, 64, 64, false, SurfaceFormat.Color);
-            _missingProfile.SetData(buffer);
-        }
     }
 
     protected override void BeginRun()
@@ -194,32 +178,17 @@ public class Main : Jelly.GameServer
         if(SteamManager.IsSteamRunning)
         {
             SteamAPI.RunCallbacks();
-
-            // if(Server)
-            //     P2PManager.CreateLobby(LobbyType.Public, 5);
-            // else
-            // {
-            //     if(Program.LobbyToJoin != 0)
-            //     {
-            //         P2PManager.JoinLobby((CSteamID)Program.LobbyToJoin);
-            //         Program.LobbyToJoin = 0;
-            //     }
-            //     else
-            //     {
-            //         ChangeScene("Title");
-            //     }
-            // }
         }
     }
 
     protected override void Update(GameTime gameTime)
     {
         var delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        Providers.SetDeltaTime(delta);
+        JellyBackend.PreUpdate(delta);
 
         if(!Server)
         {
-            Input.IgnoreInput = !IsActive || Server;
+            Input.IgnoreInput = !IsActive;
 
             Input.RefreshKeyboardState();
             Input.RefreshMouseState();
@@ -233,7 +202,7 @@ public class Main : Jelly.GameServer
             if(ChatWindowOpen)
             {
                 ChatWindowOpen = false;
-                ChatInput = "";
+                CurrentChatInput = "";
             }
             else
             {
@@ -251,7 +220,7 @@ public class Main : Jelly.GameServer
         GlobalCoroutineRunner.Update(delta);
 
         if(FreezeTimer > 0)
-            FreezeTimer = Math.Max(FreezeTimer - Providers.DeltaTime, 0);
+            FreezeTimer = Math.Max(FreezeTimer - Time.DeltaTime, 0);
         else
         {
             scene?.PreUpdate();
@@ -264,24 +233,24 @@ public class Main : Jelly.GameServer
             List<char> input = [..Input.GetTextInput()];
             bool backspace = input.Remove('\x127');
 
-            ChatInput += string.Join(null, input);
-            ChatInput = ChatInput[..MathHelper.Min(ChatInput.Length, 4096)];
+            CurrentChatInput += string.Join(null, input);
+            CurrentChatInput = CurrentChatInput[..MathHelper.Min(CurrentChatInput.Length, 4096)];
 
-            if(backspace && ChatInput.Length > 0)
+            if(backspace && CurrentChatInput.Length > 0)
             {
-                ChatInput = ChatInput[..^1];
+                CurrentChatInput = CurrentChatInput[..^1];
             }
         }
 
         if(Input.GetPressed(Keys.Enter))
         {
-            ChatWindowOpen = !ChatWindowOpen;
-            if(!ChatWindowOpen && ChatInput.Length > 0)
+            // ChatWindowOpen = !ChatWindowOpen;
+            if(!ChatWindowOpen && CurrentChatInput.Length > 0)
             {
-                string message = ChatInput[..MathHelper.Min(ChatInput.Length, 4096)];
+                string message = CurrentChatInput[..MathHelper.Min(CurrentChatInput.Length, 4096)];
 
                 WriteChatMessage(message, (!SteamManager.IsSteamRunning) ? CSteamID.Nil : P2PManager.MyID, false);
-                ChatInput = "";
+                CurrentChatInput = "";
             }
         }
 
@@ -302,14 +271,14 @@ public class Main : Jelly.GameServer
         camera.Update();
 
         //Changing scenes
-        if(ChangeLocalScene(nextScene))
+        if(ChangeScene(nextScene))
         {
             scene?.Begin();
         }
 
         base.Update(gameTime);
 
-        Ticks++;
+        TotalFrames++;
     }
 
     private void PreDraw(GameTime gameTime)
@@ -330,32 +299,6 @@ public class Main : Jelly.GameServer
         Renderer.BeginDrawUI();
 
         scene?.DrawUI();
-
-        // // profiles
-        // if(SteamManager.IsSteamRunning)
-        // {
-        //     var members = P2PManager.GetCurrentLobbyMembers();
-        //     if(members.Count > 0)
-        //     {
-        //         for(int i = 0; i < members.Count; i++)
-        //         {
-        //             CSteamID member = members[i];
-
-        //             var texture = GetMediumSteamAvatar(member);
-        //             Renderer.SpriteBatch.Draw(texture, new Vector2(2 + (66 * i), 2), Color.White);
-
-        //             var name = SteamFriends.GetFriendPersonaName(member);
-
-        //             Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, name, new Vector2(2 + (66 * i), 2) + Vector2.UnitY * 64, Color.White, 4);
-
-        //             if(P2PManager.GetLobbyOwner() == member)
-        //                 Renderer.SpriteBatch.Draw(Content.Load<Texture2D>("Images/UI/Multiplayer/Crown"), new Vector2(2 + (66 * i), 2) + Vector2.UnitY * (64 + 3) + Vector2.UnitX * (1 + RegularFont.MeasureString(name).X), Color.White);
-        //         }
-        //     }
-
-        //     Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "InLobby: " + P2PManager.InLobby, new Vector2(12, Renderer.ScreenSize.Y - 34), Color.White, 4);
-        //     Renderer.SpriteBatch.DrawStringSpacesFix(RegularFont, "CurrentLobby: " + P2PManager.CurrentLobby.m_SteamID, new Vector2(14, Renderer.ScreenSize.Y - 24), Color.White, 4);
-        // }
 
         if(ChatWindowOpen || chatAlpha > 0)
         {
@@ -385,12 +328,12 @@ public class Main : Jelly.GameServer
 
                 float x = chatWidth - 1 - MathHelper.Max(
                     chatWidth - 1,
-                    RegularFont.MeasureString(ChatInput).X + (ChatInput.Split(' ').Length - 1) * spaceWidth
+                    RegularFont.MeasureString(CurrentChatInput).X + (CurrentChatInput.Split(' ').Length - 1) * spaceWidth
                 );
 
                 Renderer.SpriteBatch.DrawStringSpacesFix(
                     RegularFont,
-                    ChatInput,
+                    CurrentChatInput,
                     new Vector2(x + chatPos.X + 1, chatPos.Y - 1),
                     Color.White,
                     spaceWidth
@@ -477,13 +420,13 @@ public class Main : Jelly.GameServer
         if(scene?.Name == name)
             return;
 
-        if(!ChangeLocalScene(Registries.Get<SceneRegistry>().GetDef(name).Build()))
+        if(!ChangeScene(Registries.Get<SceneRegistry>().GetDef(name).Build()))
             return;
 
         scene?.Begin();
     }
 
-    private static bool ChangeLocalScene(Scene newScene)
+    private static bool ChangeScene(Scene newScene)
     {
         nextScene = newScene;
         if(scene != nextScene)
@@ -506,8 +449,6 @@ public class Main : Jelly.GameServer
 
     public static void HandleLeavingLobby()
     {
-        _playersConfirmed = 0;
-
         ChangeScene("Title");
     }
 
@@ -574,13 +515,6 @@ public class Main : Jelly.GameServer
                 {
                     var texture = new Texture2D(device, (int)width, (int)height, false, SurfaceFormat.Color);
                     texture.SetData(rgba, 0, rgba.Length);
-
-                    if(Util.TexturesRoughlyMatch(texture, _missingProfile, 0.9f, 0.05f))
-                    {
-                        AlreadyLoadedAvatars.Remove(cSteamID);
-                        AlreadyLoadedAvatars.Add(cSteamID, DefaultSteamProfile);
-                        return DefaultSteamProfile;
-                    }
 
                     AlreadyLoadedAvatars.Remove(cSteamID);
                     AlreadyLoadedAvatars.Add(cSteamID, texture);

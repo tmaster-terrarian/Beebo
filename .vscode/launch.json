@@ -17,7 +17,8 @@
             "cwd": "${workspaceFolder}/Beebo",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
-            "stopAtEntry": false
+            "stopAtEntry": false,
+            "brokeredServicePipeName": "undefined"
         },
         {
             "name": ".NET Core Attach",

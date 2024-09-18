@@ -37,7 +37,7 @@ public class SimplePlayerBehavior : Component
 
         var velocity = Velocity;
 
-        var delta = Providers.DeltaTime * 60;
+        var delta = Time.DeltaTime * 60;
 
         if(input.X == 1)
         {

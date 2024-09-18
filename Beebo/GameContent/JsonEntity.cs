@@ -28,7 +28,7 @@ public class JsonEntity
 
     [JsonInclude] internal long? EntityID { get; set; } = null;
 
-    public Entity Create(Scene scene, bool skipSync = true)
+    public Entity Create(Scene scene)
     {
         var entity = new Entity(Position)
         {
@@ -42,7 +42,7 @@ public class JsonEntity
             entity.EntityID = EntityID.Value;
 
         if(Components is not null)
-            entity.Components.Add(Components);
+            entity.Components?.Add(Components);
 
         scene.Entities.Add(entity);
 

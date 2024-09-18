@@ -28,6 +28,7 @@
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.1.988-develop" />
     <!-- <PackageReference Include="MonoGame.Primitives2D" Version="1.1.1" /> --> <!-- unused for now -->
     <PackageReference Include="Nopipeline.Task" Version="2.2.0" />
+    <!-- <PackageReference Include="Aether.Physics2D.MG" Version="2.1.0" /> -->
   </ItemGroup>
 
   <ItemGroup>

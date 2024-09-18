@@ -44,9 +44,6 @@ internal class Program
         {
             List<string> list = new(args);
 
-            if(list.Contains("-dedServer"))
-                game.Server = true;
-
             if(list.Contains("-noSteam"))
                 UseSteamworks = false;
 
