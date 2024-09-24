@@ -38,5 +38,7 @@
       "depth": 0
     }
   ],
-  "name": "Title"
+  "name": "Title",
+  "height": 64,
+  "width": 64
 }

@@ -130,7 +130,7 @@ public static class P2PManager
                         {
                             case CallbackPacketType.SceneChange:
                             {
-                                Main.Logger.Info($"{SteamFriends.GetFriendPersonaName(steamIDRemote)} ({steamIDRemote}) has loaded");
+                                Main.Logger.LogInfo($"{SteamFriends.GetFriendPersonaName(steamIDRemote)} ({steamIDRemote}) has loaded");
                                 break;
                             }
                         }
@@ -142,8 +142,8 @@ public static class P2PManager
                         {
                             case CallbackPacketType.SceneChange:
                             {
-                                Main.Logger.Info("All players have finished loading, beginning scene");
-                                Main.Scene?.Begin();
+                                Main.Logger.LogInfo("All players have finished loading, beginning scene");
+                                // Main.Scene?.Begin();
                                 break;
                             }
                         }
@@ -151,7 +151,7 @@ public static class P2PManager
                     }
                     default:
                     {
-                        SteamManager.Logger.Warn("Received an invalid packet with unknown type: " + packet[0] + ", value: '" + string.Join("", data) + "'");
+                        SteamManager.Logger.LogWarning("Received an invalid packet with unknown type: " + packet[0] + ", value: '" + string.Join("", data) + "'");
                         break;
                     }
                 }
@@ -203,7 +203,7 @@ public static class P2PManager
     {
         if(InLobby)
         {
-            SteamManager.Logger.Info($"Leaving current lobby ({CurrentLobby.m_SteamID}) ...");
+            SteamManager.Logger.LogInfo($"Leaving current lobby ({CurrentLobby.m_SteamID}) ...");
             HandleLobbyOwnerLeft();
 
             Main.HandleLeavingLobby();
@@ -220,7 +220,7 @@ public static class P2PManager
 
             Main.ChatHistory.Clear();
 
-            SteamManager.Logger.Info($"Lobby left!");
+            SteamManager.Logger.LogInfo($"Lobby left!");
         }
     }
 
@@ -234,7 +234,7 @@ public static class P2PManager
                 players.Remove(MyID);
                 var newOwner = players[0];
 
-                SteamManager.Logger.Info($"Transferring lobby ownership to {SteamFriends.GetFriendPersonaName(newOwner)} ({newOwner})");
+                SteamManager.Logger.LogInfo($"Transferring lobby ownership to {SteamFriends.GetFriendPersonaName(newOwner)} ({newOwner})");
 
                 SetLobbyOwner(MyID, newOwner);
             }
@@ -261,7 +261,7 @@ public static class P2PManager
         int numPlayers = PlayerCount;
 
         if(log)
-            SteamManager.Logger.Info("\t Number of players currently in lobby: " + numPlayers);
+            SteamManager.Logger.LogInfo("\t Number of players currently in lobby: " + numPlayers);
 
         List<CSteamID> ids = [];
 
@@ -270,7 +270,7 @@ public static class P2PManager
             var id = SteamMatchmaking.GetLobbyMemberByIndex(CurrentLobby, i);
 
             if(log)
-                SteamManager.Logger.Info("\t Player " + (i + 1) + ": " + SteamFriends.GetFriendPersonaName(id) + (GetLobbyOwner() == id ? " (owner)" : ""));
+                SteamManager.Logger.LogInfo("\t Player " + (i + 1) + ": " + SteamFriends.GetFriendPersonaName(id) + (GetLobbyOwner() == id ? " (owner)" : ""));
 
             ids.Add(id);
         }
@@ -281,10 +281,10 @@ public static class P2PManager
     private static void OnLobbyCreated(LobbyCreated_t result)
     {
         if(result.m_eResult == EResult.k_EResultOK)
-            SteamManager.Logger.Info("Lobby created -- SUCCESS!");
+            SteamManager.Logger.LogInfo("Lobby created -- SUCCESS!");
         else
         {
-            SteamManager.Logger.Info("Lobby created -- failure ...");
+            SteamManager.Logger.LogInfo("Lobby created -- failure ...");
             return;
         }
 
@@ -298,7 +298,7 @@ public static class P2PManager
     {
         PublicLobbyList.Clear();
 
-        SteamManager.Logger.Info("Found " + result.m_nLobbiesMatching + " lobbies!");
+        SteamManager.Logger.LogInfo("Found " + result.m_nLobbiesMatching + " lobbies!");
 
         for(int i = 0; i < result.m_nLobbiesMatching; i++)
         {
@@ -318,7 +318,7 @@ public static class P2PManager
             {
                 var name = SteamMatchmaking.GetLobbyData((CSteamID)PublicLobbyList[i].m_SteamID, "name");
                 if(name != "")
-                    SteamManager.Logger.Info($"Lobby {i} :: {name}");
+                    SteamManager.Logger.LogInfo($"Lobby {i} :: {name}");
                 return;
             }
         }
@@ -410,11 +410,11 @@ public static class P2PManager
                 Main.ChangeScene("Test");
             }
 
-            SteamManager.Logger.Info("Lobby joined!");
+            SteamManager.Logger.LogInfo("Lobby joined!");
         }
         else
         {
-            SteamManager.Logger.Info("Failed to join lobby.");
+            SteamManager.Logger.LogInfo("Failed to join lobby.");
         }
     }
 

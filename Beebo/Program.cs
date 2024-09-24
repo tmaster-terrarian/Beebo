@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using Jelly;
 using Steamworks;
 
 internal class Program
@@ -73,7 +74,7 @@ internal class Program
         {
             LogFile.Write(buffer, callback.Index ?? 0, callback.Count ?? buffer.Length);
 
-            if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
+            if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
                 int i = callback.Index ?? 0;
                 int i2 = i + (callback.Count ?? buffer.Length) - 1;
@@ -84,7 +85,7 @@ internal class Program
         {
             LogFile.Write(callback.Value);
 
-            if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
+            if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
                 Beebo.Main.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
             }
@@ -95,7 +96,7 @@ internal class Program
     {
         LogFile.Write(callback.Format, callback.Arg);
 
-        if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
+        if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
         {
             Beebo.Main.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
         }
@@ -107,7 +108,7 @@ internal class Program
         {
             LogFile.WriteLine(buffer, callback.Index ?? 0, callback.Count ?? buffer.Length);
 
-            if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
+            if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
                 int i = callback.Index ?? 0;
                 int i2 = i + (callback.Count ?? buffer.Length) - 1;
@@ -118,7 +119,7 @@ internal class Program
         {
             LogFile.WriteLine(callback.Value);
 
-            if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
+            if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
                 Beebo.Main.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
             }
@@ -129,7 +130,7 @@ internal class Program
     {
         LogFile.WriteLine(callback.Format, callback.Arg);
 
-        if(Beebo.Main.Debug.Enabled && Beebo.Main.Debug.LogToChat)
+        if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
         {
             Beebo.Main.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
         }

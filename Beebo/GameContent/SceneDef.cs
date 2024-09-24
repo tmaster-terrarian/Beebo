@@ -10,10 +10,15 @@ public class SceneDef : ContentDef
 {
     public IList<JsonEntity> Entities { get; set; } = [];
 
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+
     public Scene Build()
     {
         var scene = new Scene {
             Name = Name,
+            Width = Width ?? CollisionSystem.TileSize,
+            Height = Height ?? CollisionSystem.TileSize
         };
 
         foreach(var e in Entities ?? [])

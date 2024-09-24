@@ -21,6 +21,6 @@ public class ComponentRegistry : Registry<ComponentTypeDef>
             });
         }
 
-        Main.Logger.Info($"Registered Components:\n  - {string.Join("\n  - ", ComponentTypes.DerivedTypes)}");
+        Main.Logger.LogInfo($"Registered Components:\n  - {string.Join("\n  - ", ComponentTypes.DerivedTypes)}");
     }
 }

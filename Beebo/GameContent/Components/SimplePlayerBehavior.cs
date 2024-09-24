@@ -1,31 +1,19 @@
-using System;
-using System.Text.Json.Serialization;
 using Jelly;
+using Jelly.Components;
 using Microsoft.Xna.Framework;
 
 namespace Beebo.GameContent.Components;
 
-public class SimplePlayerBehavior : Component
+public class SimplePlayerBehavior : Actor
 {
-    [JsonInclude] private float yRemainder;
-    [JsonInclude] private float xRemainder;
-
     private readonly PlayerInputMapping inputMapping = new();
-
-    [JsonInclude] private Vector2 velocity = Vector2.Zero;
 
     public float MaxSpeed { get; set; } = 4;
 
-    [JsonIgnore]
-    public Vector2 Velocity
+    public override void EntityAwake()
     {
-        get => velocity;
-        set => velocity = value;
-    }
-
-    public override void Added(Entity entity)
-    {
-        base.Added(entity);
+        // Entity.X = 100;
+        // Entity.Y = 100;
     }
 
     public override void Update()
@@ -34,8 +22,6 @@ public class SimplePlayerBehavior : Component
             inputMapping.Right.IsDown.ToInt32() - inputMapping.Left.IsDown.ToInt32(),
             inputMapping.Down.IsDown.ToInt32() - inputMapping.Up.IsDown.ToInt32()
         );
-
-        var velocity = Velocity;
 
         var delta = Time.DeltaTime * 60;
 
@@ -85,43 +71,35 @@ public class SimplePlayerBehavior : Component
             velocity.Y = Util.Approach(velocity.Y, 0, 0.16f * delta);
         }
 
-        Velocity = velocity;
+        MoveX(velocity.X, () => {
+            velocity.X = 0;
+        });
+        MoveY(velocity.Y, () => {
+            velocity.Y = 0;
+        });
 
-        MoveX(velocity.X, null);
-        MoveY(velocity.Y, null);
-    }
-
-    public virtual void MoveX(float amount, Action? onCollide)
-    {
-        xRemainder += amount;
-        int move = Util.RoundToInt(xRemainder);
-        xRemainder -= move;
-
-        if(move != 0)
+        if(Left < 0)
         {
-            int sign = Math.Sign(move);
-            while(move != 0)
-            {
-                Entity.X += sign;
-                move -= sign;
-            }
+            Entity.X = 0;
+            velocity.X = 0;
         }
-    }
 
-    public virtual void MoveY(float amount, Action? onCollide)
-    {
-        yRemainder += amount;
-        int move = Util.RoundToInt(yRemainder);
-        yRemainder -= move;
-
-        if(move != 0)
+        if(Right > Scene.Width)
         {
-            int sign = Math.Sign(move);
-            while(move != 0)
-            {
-                Entity.Y += sign;
-                move -= sign;
-            }
+            Entity.X = Scene.Width - Width;
+            velocity.X = 0;
+        }
+
+        if(Top < 0)
+        {
+            Entity.Y = 0;
+            velocity.Y = 0;
+        }
+
+        if(Bottom > Scene.Height)
+        {
+            Entity.Y = Scene.Height - Height;
+            velocity.Y = 0;
         }
     }
 }

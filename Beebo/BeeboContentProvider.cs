@@ -31,7 +31,7 @@ public class BeeboContentProvider : ContentProvider
         catch(System.Exception e)
         {
             pathsThatDontWork.Add(pathName);
-            Main.Logger.Error(e);
+            Main.Logger.LogError(e);
             return null;
         }
     }

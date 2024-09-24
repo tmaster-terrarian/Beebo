@@ -22,25 +22,25 @@ public static class SteamManager
         {
             if(!SteamAPI.Init())
             {
-                Logger.Error("SteamAPI.Init() failed!");
+                Logger.LogError("SteamAPI.Init() failed!");
                 return false;
             }
         }
         catch(DllNotFoundException e) // We check this here as it will be the first instance of it.
         {
-            Logger.Error(e);
+            Logger.LogError(e);
             return false;
         }
 
         if(!Packsize.Test())
         {
-            Logger.Error("You're using the wrong Steamworks.NET Assembly for this platform!");
+            Logger.LogError("You're using the wrong Steamworks.NET Assembly for this platform!");
             return false;
         }
 
         if(!DllCheck.Test())
         {
-            Logger.Error("You're using the wrong dlls for this platform!");
+            Logger.LogError("You're using the wrong dlls for this platform!");
             return false;
         }
 
@@ -49,8 +49,8 @@ public static class SteamManager
         Initialize();
 
         {
-            Logger.Info("Steam AppInstallDir: " + SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260) + " " + folder);
-            Logger.Info("ProgramPath: " + Main.ProgramPath.Length + " " + Main.ProgramPath);
+            Logger.LogInfo("Steam AppInstallDir: " + SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260) + " " + folder);
+            Logger.LogInfo("ProgramPath: " + Main.ProgramPath.Length + " " + Main.ProgramPath);
         }
 
         return true;
@@ -59,7 +59,7 @@ public static class SteamManager
     public static void Cleanup()
     {
         P2PManager.LeaveLobby();
-        Logger.Info("Shutting down Steam...");
+        Logger.LogInfo("Shutting down Steam...");
         SteamAPI.Shutdown();
     }
 

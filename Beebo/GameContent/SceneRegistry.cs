@@ -39,7 +39,7 @@ public class SceneRegistry : Registry<SceneDef>
             ]
         };
 
-        Main.Logger.Info($"Registered Scenes:\n  - {string.Join("\n  - ", this.Keys)}");
+        Main.Logger.LogInfo($"Registered Scenes:\n  - {string.Join("\n  - ", this.Keys)}");
 
         Register(test);
     }

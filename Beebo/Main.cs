@@ -17,14 +17,13 @@ using Jelly.Graphics;
 using Jelly.IO;
 
 using Steamworks;
+using Beebo.GameContent.Components;
+using Beebo.GameContent.Entities;
 
 namespace Beebo;
 
 public class Main : Jelly.GameServer
 {
-    private static Scene scene;
-    private static Scene nextScene;
-
     internal static Main Instance { get; private set; } = null;
 
     public static Logger Logger { get; } = new("Main");
@@ -50,19 +49,6 @@ public class Main : Jelly.GameServer
 
     public static Texture2D? DefaultSteamProfile { get; private set; }
 
-    public static Entity MyPlayer { get; private set; }
-
-    /// <summary>
-    /// The currently active Scene. Note that if set, the Scene will not actually change until the end of the Update
-    /// </summary>
-    public static Scene Scene {
-        get => scene;
-        set {
-            if(!ReferenceEquals(scene, value))
-                nextScene = value;
-        }
-    }
-
     public static float FreezeTimer { get; set; }
 
     public static bool ChatWindowOpen { get; private set; } = false;
@@ -83,10 +69,10 @@ public class Main : Jelly.GameServer
 
     private readonly bool steamFailed;
 
+    private Scene Scene => SceneManager.ActiveScene;
+
     public static class Debug
     {
-        public static bool Enabled { get; set; }
-
         public static bool LogToChat { get; set; }
     }
 
@@ -97,7 +83,7 @@ public class Main : Jelly.GameServer
         Instance = this;
 
         #if DEBUG
-        Debug.Enabled = true;
+        JellyBackend.DebugEnabled = true;
         #endif
 
         _graphics = new GraphicsDeviceManager(this)
@@ -118,14 +104,14 @@ public class Main : Jelly.GameServer
             {
                 if(SteamAPI.RestartAppIfNecessary(SteamManager.AppID))
                 {
-                    Logger.Error("Steamworks.NET", "Game wasn't started by Steam-client! Restarting..");
+                    SteamManager.Logger.LogError("Game wasn't started by Steam-client! Restarting..");
                     Exit();
                 }
             }
             catch(DllNotFoundException e)
             {
                 // We check this here as it will be the first instance of it.
-                Logger.Error("Steamworks.NET", "Could not load [lib]steam_api.dll/so/dylib. It's likely not in the correct location. Refer to the README for more details.\nCaused by " + e);
+                SteamManager.Logger.LogError("Could not load [lib]steam_api.dll/so/dylib. It's likely not in the correct location. Refer to the README for more details.\nCaused by " + e);
                 steamFailed = true;
             }
         }
@@ -133,7 +119,7 @@ public class Main : Jelly.GameServer
 
     protected override void Initialize()
     {
-        Logger.Info("Entering main loop");
+        Logger.LogInfo("Entering main loop");
 
         if(!Server) Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
@@ -150,6 +136,8 @@ public class Main : Jelly.GameServer
         RegistryManager.Init();
 
         JellyBackend.Initialize(new BeeboContentProvider());
+
+        SceneManager.ActiveSceneChanged += SceneChanged;
 
         if(!Server) base.Initialize();
         else LoadContent();
@@ -211,6 +199,11 @@ public class Main : Jelly.GameServer
             }
         }
 
+        if(Input.GetPressed(Keys.F1))
+        {
+            JellyBackend.DebugEnabled = !JellyBackend.DebugEnabled;
+        }
+
         if(SteamManager.IsSteamRunning)
         {
             SteamAPI.RunCallbacks();
@@ -223,9 +216,9 @@ public class Main : Jelly.GameServer
             FreezeTimer = Math.Max(FreezeTimer - Time.DeltaTime, 0);
         else
         {
-            scene?.PreUpdate();
-            scene?.Update();
-            scene?.PostUpdate();
+            Scene?.PreUpdate();
+            Scene?.Update();
+            Scene?.PostUpdate();
         }
 
         if(ChatWindowOpen)
@@ -244,7 +237,7 @@ public class Main : Jelly.GameServer
 
         if(Input.GetPressed(Keys.Enter))
         {
-            // ChatWindowOpen = !ChatWindowOpen;
+            ChatWindowOpen = !ChatWindowOpen;
             if(!ChatWindowOpen && CurrentChatInput.Length > 0)
             {
                 string message = CurrentChatInput[..MathHelper.Min(CurrentChatInput.Length, 4096)];
@@ -256,25 +249,21 @@ public class Main : Jelly.GameServer
 
         if(!ChatWindowOpen)
         {
-            // if(Input.GetPressed(Keys.F3))
-            // {
-            //     if(scene is not null)
-            //     {
-            //         var json = scene.Serialize(false);
-            //         Logger.Info(json);
-            //         var newScene = SceneDef.Deserialize(json);
-            //         Logger.Info(newScene.Serialize(false));
-            //     }
-            // }
+            if(Input.GetPressed(Keys.F3))
+            {
+                if(SceneManager.ActiveScene is not null)
+                {
+                    var json = SceneManager.ActiveScene.Serialize(false);
+                    Logger.LogInfo(json);
+                    // var newScene = SceneDef.Deserialize(json);
+                    // Logger.LogInfo(newScene.Serialize(false));
+                }
+            }
         }
 
         camera.Update();
 
-        //Changing scenes
-        if(ChangeScene(nextScene))
-        {
-            scene?.Begin();
-        }
+        JellyBackend.PostUpdate(delta);
 
         base.Update(gameTime);
 
@@ -283,7 +272,7 @@ public class Main : Jelly.GameServer
 
     private void PreDraw(GameTime gameTime)
     {
-        scene?.PreDraw();
+        Scene?.PreDraw();
     }
 
     protected override void Draw(GameTime gameTime)
@@ -292,13 +281,18 @@ public class Main : Jelly.GameServer
 
         Renderer.BeginDraw(SamplerState.PointWrap, camera.Transform);
 
-        scene?.Draw();
-        scene?.PostDraw();
+        var rect = GraphicsDevice.ScissorRectangle;
+        GraphicsDevice.ScissorRectangle = new(0, 0, Scene.Width, Scene.Height);
+
+        Scene?.Draw();
+        Scene?.PostDraw();
+
+        GraphicsDevice.ScissorRectangle = rect;
 
         Renderer.EndDraw();
         Renderer.BeginDrawUI();
 
-        scene?.DrawUI();
+        Scene?.DrawUI();
 
         if(ChatWindowOpen || chatAlpha > 0)
         {
@@ -361,6 +355,13 @@ public class Main : Jelly.GameServer
         base.Draw(gameTime);
     }
 
+    private void SceneChanged(Scene oldScene, Scene newScene)
+    {
+        Entity entity = new();
+        EntityRegistry.SimplePlayer.OnCreate(entity);
+        newScene.Entities.Add(entity);
+    }
+
     private void Game_Exiting(object sender, EventArgs e)
     {
         if(SteamManager.IsSteamRunning)
@@ -375,8 +376,8 @@ public class Main : Jelly.GameServer
         {
             case ReadinessReason.WaitForSceneLoad:
             {
-                Logger.Info("All players have finished loading, beginning scene");
-                scene?.Begin();
+                Logger.LogInfo("All players have finished loading, beginning scene");
+                Instance.Scene?.Begin();
                 break;
             }
         }
@@ -387,7 +388,7 @@ public class Main : Jelly.GameServer
         if(system)
         {
             if(!noLog)
-                Logger.Info("Server msg: " + message);
+                Logger.LogInfo("Server msg: " + message);
 
             ChatHistory.Add(new(message, Color.Yellow));
         }
@@ -400,7 +401,7 @@ public class Main : Jelly.GameServer
             }
 
             if(!noLog)
-                Logger.Info(name + " says: " + message);
+                Logger.LogInfo(name + " says: " + message);
 
             ChatHistory.Add(new($"{name}: {message}", Color.White));
         }
@@ -415,36 +416,14 @@ public class Main : Jelly.GameServer
         to.TimeScale = 1f;
     }
 
-    internal static void ChangeScene(string name)
+    public static void ChangeScene(string name)
     {
-        if(scene?.Name == name)
+        if(SceneManager.ActiveScene?.Name == name)
             return;
 
-        if(!ChangeScene(Registries.Get<SceneRegistry>().GetDef(name).Build()))
-            return;
+        SceneManager.ActiveScene = Registries.Get<SceneRegistry>().GetDef(name).Build();
 
-        scene?.Begin();
-    }
-
-    private static bool ChangeScene(Scene newScene)
-    {
-        nextScene = newScene;
-        if(scene != nextScene)
-        {
-            var lastScene = scene;
-
-            scene?.End();
-
-            scene = nextScene;
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            OnSceneTransition(lastScene, nextScene);
-
-            Logger.Info($"Loaded scene {newScene.Name}");
-            return true;
-        }
-        return false;
+        // networking stuff
     }
 
     public static void HandleLeavingLobby()
@@ -457,7 +436,7 @@ public class Main : Jelly.GameServer
         using var stream = new MemoryStream();
         var binaryWriter = new BinaryWriter(stream);
 
-        binaryWriter.Write(scene.Serialize());
+        binaryWriter.Write(Instance.Scene.Serialize());
 
         return stream.GetBuffer();
     }
@@ -479,14 +458,14 @@ public class Main : Jelly.GameServer
     {
         base.OnActivated(sender, args);
 
-        scene?.GainFocus();
+        Scene?.GainFocus();
     }
 
     protected override void OnDeactivated(object sender, EventArgs args)
     {
         base.OnDeactivated(sender, args);
 
-        scene?.LoseFocus();
+        Scene?.LoseFocus();
     }
 
     public static Texture2D GetMediumSteamAvatar(CSteamID cSteamID)
