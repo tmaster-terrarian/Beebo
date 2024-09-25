@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 using Beebo.GameContent;
+using Beebo.Graphics;
 using Beebo.Net;
 
 using Jelly;
@@ -17,8 +18,7 @@ using Jelly.Graphics;
 using Jelly.IO;
 
 using Steamworks;
-using Beebo.GameContent.Components;
-using Beebo.GameContent.Entities;
+using Jelly.Localization;
 
 namespace Beebo;
 
@@ -133,9 +133,16 @@ public class Main : Jelly.GameServer
             }
         }
 
-        RegistryManager.Init();
+        RegistryManager.Initialize();
 
         JellyBackend.Initialize(new BeeboContentProvider());
+
+        LocalizationManager.CurrentLanguage = "jp-jp";
+
+        Logger.LogInfo("test: " + LocalizationManager.GetLocalizedValue("test"));
+        Logger.LogInfo("test2: " + LocalizationManager.GetLocalizedValue("test2"));
+
+        BeeboImGuiRenderer.Initialize(this);
 
         SceneManager.ActiveSceneChanged += SceneChanged;
 
@@ -157,6 +164,8 @@ public class Main : Jelly.GameServer
         RegularFontBold = Content.Load<SpriteFont>("Fonts/defaultBold");
 
         DefaultSteamProfile = Content.Load<Texture2D>("Images/UI/Multiplayer/DefaultProfile");
+
+        BeeboImGuiRenderer.LoadContent(Content);
     }
 
     protected override void BeginRun()
@@ -267,6 +276,8 @@ public class Main : Jelly.GameServer
 
         base.Update(gameTime);
 
+        BeeboImGuiRenderer.Update(gameTime);
+
         TotalFrames++;
     }
 
@@ -293,6 +304,8 @@ public class Main : Jelly.GameServer
         Renderer.BeginDrawUI();
 
         Scene?.DrawUI();
+
+        BeeboImGuiRenderer.DrawUI(gameTime);
 
         if(ChatWindowOpen || chatAlpha > 0)
         {
@@ -353,6 +366,8 @@ public class Main : Jelly.GameServer
         Renderer.FinalizeDraw();
 
         base.Draw(gameTime);
+
+        BeeboImGuiRenderer.PostDraw(gameTime);
     }
 
     private void SceneChanged(Scene oldScene, Scene newScene)

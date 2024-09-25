@@ -29,6 +29,8 @@
     <!-- <PackageReference Include="MonoGame.Primitives2D" Version="1.1.1" /> --> <!-- unused for now -->
     <PackageReference Include="Nopipeline.Task" Version="2.2.0" />
     <!-- <PackageReference Include="Aether.Physics2D.MG" Version="2.1.0" /> -->
+    <PackageReference Include="ImGui.NET" Version="1.90.1.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,6 +50,10 @@
     <Reference Include="LDtk.ContentPipeline, Version=1.0.0">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>LDtk.ContentPipeline.dll</HintPath>
+    </Reference>
+    <Reference Include="Monogame.ImGuiNet, Version=0.1.0">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>Monogame.ImGuiNet.dll</HintPath>
     </Reference>
   </ItemGroup>
 

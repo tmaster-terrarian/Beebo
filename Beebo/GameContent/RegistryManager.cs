@@ -31,7 +31,7 @@ public static class RegistryManager
         TypeInfoResolver = TypeResolver,
     };
 
-    public static void Init()
+    public static void Initialize()
     {
         var assembly = System.Reflection.Assembly.GetExecutingAssembly();
 
