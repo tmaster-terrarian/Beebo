@@ -20,6 +20,8 @@ public static partial class Chat
 {
     private static float chatAlpha;
 
+    private static int currentSuggestion;
+
     public static bool WindowOpen { get; private set; } = false;
     public static string TextInput { get; private set; } = "";
     public static int Cursor { get; private set; } = 0;
@@ -47,7 +49,7 @@ public static partial class Chat
             TextInput =
                 (Cursor > 0 ? TextInput[..Cursor] : "") +
                 string.Join(null, input) +
-                (Cursor + input.Count < c ? TextInput[(Cursor + input.Count)..] : "");
+                (Cursor < c ? TextInput[Cursor..] : "");
 
             TextInput = TextInput[..MathHelper.Min(TextInput.Length, 10240)];
 
@@ -56,16 +58,46 @@ public static partial class Chat
                 TextInput = TextInput[..^1];
             }
 
-            Cursor = MathHelper.Min(Cursor + input.Count, TextInput.Length);
+            Cursor += input.Count;
+
+            if(Input.GetPressed(Keys.Left)) Cursor--;
+            if(Input.GetPressed(Keys.Right)) Cursor++;
+
+            Cursor = MathHelper.Clamp(Cursor, 0, TextInput.Length);
 
             if(TextInput.StartsWith('/'))
             {
+                if(Input.GetPressed(Keys.Up)) currentSuggestion++;
+                if(Input.GetPressed(Keys.Down)) currentSuggestion--;
+
                 var text = TextInput.Length > 1 ? TextInput[1..] : "";
                 if(TextInput.Length != c)
                 {
+                    currentSuggestion = 0;
                     Commands.GetSuggestions(text, EntityCommandSource.Default, Cursor - 1);
                 }
+
+                currentSuggestion = MathHelper.Clamp(currentSuggestion, 0, (Commands.Suggestions?.List.Count - 1) ?? 0);
+
+                if((Commands.Suggestions?.List.Count ?? 0) > 0)
+                {
+                    var completion = Commands.Suggestions.List[currentSuggestion].Text;
+
+                    if(Input.GetPressed(Keys.Tab) && !text[..(Cursor - 1)].EndsWith(completion))
+                    {
+                        TextInput =
+                            (Cursor > 0 ? TextInput[..Cursor] : "") +
+                            completion[Commands.Suggestions.Range.End..] +
+                            (Cursor < c ? TextInput[Cursor..] : "");
+
+                        Cursor = MathHelper.Clamp(Cursor + completion.Length, 0, TextInput.Length);
+
+                        Commands.GetSuggestions(TextInput[1..], EntityCommandSource.Default, Cursor - 1);
+                    }
+                }
             }
+            else
+                currentSuggestion = 0;
 
             Scroll += Input.GetScrollDelta();
             Scroll = MathHelper.Clamp(Scroll, 0, MathHelper.Max(0, History.Count - 5));
@@ -86,10 +118,10 @@ public static partial class Chat
                 }
 
                 TextInput = "";
+                Scroll = 0;
             }
 
             Cursor = 0;
-            Scroll = 0;
         }
 
         if(!WindowOpen)
@@ -120,7 +152,7 @@ public static partial class Chat
                     Renderer.PixelTexture,
                     new Rectangle(
                         chatPos.X,
-                        chatPos.Y - lineHeight * MathHelper.Min(5, History.Count),
+                        chatPos.Y - lineHeight * MathHelper.Min(5, History.Count) - 1,
                         chatWidth,
                         lineHeight * MathHelper.Min(5, History.Count)
                     ),
@@ -145,7 +177,7 @@ public static partial class Chat
                     spaceWidth
                 );
 
-                Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle((int)x + chatPos.X + (int)Main.RegularFont.MeasureString(TextInput[..Cursor]).X, chatPos.Y + 1, 1, 10), Color.White * 0.5f);
+                Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle((int)x + chatPos.X + (int)Main.RegularFont.MeasureString(TextInput[..Cursor]).X, chatPos.Y + 1, 1, 10), Color.LightGray);
             }
 
             for(int i = 0; i < 5; i++)
@@ -156,7 +188,7 @@ public static partial class Chat
                 Renderer.SpriteBatch.DrawStringSpacesFix(
                     Main.RegularFont,
                     History[index].Item1,
-                    new Vector2(chatPos.X + 1, chatPos.Y - (lineHeight + 1) - (i * lineHeight)),
+                    new Vector2(chatPos.X + 1, chatPos.Y - (lineHeight + 2) - (i * lineHeight)),
                     History[index].Item2 * alpha,
                     spaceWidth
                 );
@@ -177,15 +209,43 @@ public static partial class Chat
                         Color.Black * 0.75f
                     );
 
+                    float x = chatWidth - 1 - MathHelper.Max(
+                        chatWidth - 1,
+                        Main.RegularFont.MeasureString(TextInput).X
+                    );
+
+                    var completion = Commands.Suggestions?.List[currentSuggestion].Text;
+                    if(completion is not null)
+                    {
+                        Renderer.SpriteBatch.DrawStringSpacesFix(
+                            Main.RegularFont,
+                            completion[Commands.Suggestions.Range.End..],
+                            new Vector2(x + chatPos.X + 1 + Main.RegularFont.MeasureString(TextInput).X, chatPos.Y - 1),
+                            Color.DarkGray,
+                            spaceWidth
+                        );
+                    }
+
                     for(int i = 0; i < Commands.Suggestions.List.Count; i++)
                     {
                         Renderer.SpriteBatch.DrawStringSpacesFix(
                             Main.RegularFont,
                             Commands.Suggestions.List[i].Text,
                             new Vector2(chatPos.X + 6, chatPos.Y - (lineHeight + 1) - (i * lineHeight)),
-                            Color.Yellow,
+                            i == currentSuggestion ? Color.Yellow : Color.White,
                             spaceWidth
                         );
+
+                        // if(i == currentSuggestion)
+                        // {
+                        //     Renderer.SpriteBatch.DrawStringSpacesFix(
+                        //         Main.RegularFont,
+                        //         Commands.Suggestions.List[i].Text[..Commands.Suggestions.Range.End],
+                        //         new Vector2(chatPos.X + 6, chatPos.Y - (lineHeight + 1) - (i * lineHeight)),
+                        //         Color.Yellow,
+                        //         spaceWidth
+                        //     );
+                        // }
                     }
                 }
             }
@@ -232,8 +292,10 @@ public static partial class Chat
             chatAlpha -= interval / fadeTime;
             yield return null;
         }
-    }
 
-    [GeneratedRegex("\\S")]
-    private static partial Regex CheckWhiteSpaces();
+        if(!WindowOpen)
+        {
+            Scroll = 0;
+        }
+    }
 }

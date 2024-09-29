@@ -13,22 +13,26 @@ public class SimplePlayerBehavior : Actor
 
     public override void EntityAwake()
     {
-        // Entity.X = 100;
-        // Entity.Y = 100;
+        Entity.X = 100;
+        Entity.Y = 100;
+
+        Entity.GetComponent<SpriteComponent>().TexturePath = "Images/Entities/SimplePlayer/idle.png";
     }
 
     public override void Update()
     {
-        Point input = new(
-            inputMapping.Right.IsDown.ToInt32() - inputMapping.Left.IsDown.ToInt32(),
-            inputMapping.Down.IsDown.ToInt32() - inputMapping.Up.IsDown.ToInt32()
-        );
+        int inputDir = inputMapping.Right.IsDown.ToInt32() - inputMapping.Left.IsDown.ToInt32();
 
-        if(Main.PlayerControlsDisabled) input = Point.Zero;
+        bool wasOnGround = OnGround;
+        bool onJumpthrough = CheckCollidingJumpthrough(BottomEdge.Shift(0, 1));
+        if(onJumpthrough) OnGround = true;
+        else OnGround = CheckColliding(BottomEdge.Shift(0, 1));
+
+        if(Main.PlayerControlsDisabled) inputDir = 0;
 
         var delta = Time.DeltaTime * 60;
 
-        if(input.X == 1)
+        if(inputDir == 1)
         {
             if(velocity.X < 0)
             {
@@ -37,7 +41,7 @@ public class SimplePlayerBehavior : Actor
 
             velocity.X = Util.Approach(velocity.X, MaxSpeed, 0.12f * delta);
         }
-        else if(input.X == -1)
+        else if(inputDir == -1)
         {
             if(velocity.X > 0)
             {
@@ -51,28 +55,7 @@ public class SimplePlayerBehavior : Actor
             velocity.X = Util.Approach(velocity.X, 0, 0.16f * delta);
         }
 
-        if(input.Y == 1)
-        {
-            if(velocity.Y < 0)
-            {
-                velocity.Y = Util.Approach(velocity.Y, 0, 0.08f * delta);
-            }
-
-            velocity.Y = Util.Approach(velocity.Y, MaxSpeed, 0.12f * delta);
-        }
-        else if(input.Y == -1)
-        {
-            if(velocity.Y > 0)
-            {
-                velocity.Y = Util.Approach(velocity.Y, 0, 0.08f * delta);
-            }
-
-            velocity.Y = Util.Approach(velocity.Y, -MaxSpeed, 0.12f * delta);
-        }
-        else
-        {
-            velocity.Y = Util.Approach(velocity.Y, 0, 0.16f * delta);
-        }
+        velocity.Y = Util.Approach(velocity.Y, 20, 0.2f * delta);
 
         MoveX(velocity.X, () => {
             velocity.X = 0;
@@ -105,14 +88,4 @@ public class SimplePlayerBehavior : Actor
             velocity.Y = 0;
         }
     }
-}
-
-public class PlayerInputMapping
-{
-    public MappedInput Right { get; set; } = new(Keys.D);
-    public MappedInput Left { get; set; } = new(Keys.A);
-    public MappedInput Down { get; set; } = new(Keys.S);
-    public MappedInput Up { get; set; } = new(Keys.W);
-    public MappedInput Jump { get; set; } = new(Keys.Space);
-    public MappedInput Fire { get; set; } = new(MouseButtons.LeftButton);
 }

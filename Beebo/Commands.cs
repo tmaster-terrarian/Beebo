@@ -49,7 +49,13 @@ public static class Commands
                         })
                 )
                 .Executes(c => {
-                    Log("Available commands:\n  - " + string.Join("\n  - ", dispatcher.GetAllUsage(dispatcher.GetRoot(), c.Source, false)));
+                    var task = dispatcher.GetCompletionSuggestions(dispatcher.Parse("", c.Source));
+
+                    List<string> strings = [];
+                    foreach(var item in task.Result.List)
+                        strings.Add(item.Text);
+
+                    Log("Available commands:\n  - " + string.Join("\n  - ", strings));
                     return 1;
                 })
         );
@@ -58,7 +64,9 @@ public static class Commands
     private static void Log(string value)
     {
         Logger.LogInfo(value);
-        Chat.WriteChatMessage(value, default, true, true);
+
+        foreach(var line in value.Split('\n'))
+            Chat.WriteChatMessage(line, default, true, true);
     }
 
     public static void ExecuteCommand(string command, EntityCommandSource source)
@@ -75,6 +83,7 @@ public static class Commands
         catch(Exception e)
         {
             Logger.LogError(e);
+            Chat.WriteChatMessage(e.Message, default, true, true);
         }
     }
 

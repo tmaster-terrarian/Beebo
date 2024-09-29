@@ -18,11 +18,7 @@ public static class BeeboImGuiRenderer
 {
     private static bool enabled = false;
 
-    private static System.Numerics.Vector4 _colorV4 = IGui(Color.White);
-
     private static readonly List<float> frameTimes = [];
-
-    private static string commandInput = "";
 
     public static ImGuiRenderer GuiRenderer { get; private set; }
 
@@ -55,10 +51,6 @@ public static class BeeboImGuiRenderer
     public static void DrawUI()
     {
         if(!enabled) return;
-
-        var v = new Vector4(_colorV4.X, _colorV4.Y, _colorV4.Z, _colorV4.W) * new Vector4(_colorV4.W, _colorV4.W, _colorV4.W, 1);
-
-        Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(2, 2, 10, 10), new Color(v));
     }
 
     public static void PostDraw()
@@ -72,7 +64,7 @@ public static class BeeboImGuiRenderer
 
         if(enabled)
         {
-            ImGui.Begin("Debug Panel", ref enabled, ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoScrollbar);
+            ImGui.Begin("Debug Panel", ref enabled, ImGuiWindowFlags.MenuBar);
 
             if(ImGui.BeginMenuBar())
             {
@@ -95,54 +87,63 @@ public static class BeeboImGuiRenderer
 
                     ImGui.EndMenu();
                 }
+
+                if(ImGui.BeginMenu("File2"))
+                {
+                    if(ImGui.MenuItem("Open.."))
+                    {
+                        
+                    }
+
+                    ImGui.EndMenu();
+                }
+
                 ImGui.EndMenuBar();
             }
-
-            // Edit a color stored as 4 floats
-            ImGui.ColorEdit4("Color", ref _colorV4);
 
             float[] samples = [..frameTimes];
             ImGui.PlotLines($"FPS: {MathF.Round(1f / System.Linq.Enumerable.Average(frameTimes))}", ref samples[0], 60);
 
             ImGui.TextColored(IGui(Color.Yellow), "Debug Console");
-            if(ImGui.BeginChild("Console Input", default, ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.ResizeX))
-            {
-                if(ImGui.InputTextWithHint(string.Empty, LocalizationManager.GetLocalizedValue("debug.gui.commandsHint"), ref commandInput, 10000, ImGuiInputTextFlags.EnterReturnsTrue))
-                {
-                    Commands.ExecuteCommand(commandInput, EntityCommandSource.Default);
 
-                    commandInput = "";
-                }
+            // if(ImGui.BeginChild("Console Input", default, ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.ResizeX))
+            // {
+            //     if(ImGui.InputTextWithHint(string.Empty, LocalizationManager.GetLocalizedValue("debug.gui.commandsHint"), ref commandInput, 10000, ImGuiInputTextFlags.EnterReturnsTrue))
+            //     {
+            //         Commands.ExecuteCommand(commandInput, EntityCommandSource.Default);
 
-                if(Input.GetAnyDown(InputType.Keyboard))
-                {
-                    List<char> input = [..Input.GetTextInput()];
-                    input.Remove('`');
-                    input.Remove('\x127');
-                    input.Remove('\0');
+            //         commandInput = "";
+            //     }
 
-                    commandInput += string.Join(null, input);
+            //     if(Input.GetAnyDown(InputType.Keyboard))
+            //     {
+            //         List<char> input = [..Input.GetTextInput()];
+            //         input.Remove('`');
+            //         input.Remove('\x127');
+            //         input.Remove('\0');
 
-                    Commands.GetSuggestions(commandInput, EntityCommandSource.Default);
-                }
+            //         commandInput += string.Join(null, input);
 
-                var context = Commands.Dispatcher.Parse(commandInput, EntityCommandSource.Default).Context.FindSuggestionContext(commandInput.Length);
+            //         Commands.GetSuggestions(commandInput, EntityCommandSource.Default);
+            //     }
 
-                string[] _sR = Commands.Dispatcher.GetAllUsage(context.Parent, EntityCommandSource.Default, true);
-                int cur = 0;
+            //     var context = Commands.Dispatcher.Parse(commandInput, EntityCommandSource.Default).Context.FindSuggestionContext(commandInput.Length);
 
-                ImGui.SameLine();
-                if(ImGui.ListBox(string.Empty, ref cur, _sR, _sR.Length))
-                {
-                    string[] strings = commandInput.Split(' ');
-                    if(strings.Length == 1)
-                        commandInput = commandInput[..MathHelper.Min(commandInput.Length, context.StartPos)] + strings[0];
-                }
+            //     string[] _sR = Commands.Dispatcher.GetAllUsage(context.Parent, EntityCommandSource.Default, true);
+            //     int cur = 0;
 
-                ImGui.EndChild();
-            }
+            //     ImGui.SameLine();
+            //     if(ImGui.ListBox(string.Empty, ref cur, _sR, _sR.Length))
+            //     {
+            //         string[] strings = commandInput.Split(' ');
+            //         if(strings.Length == 1)
+            //             commandInput = commandInput[..MathHelper.Min(commandInput.Length, context.StartPos)] + strings[0];
+            //     }
 
-            if(ImGui.BeginChild("Scrolling", new(0, 200), ImGuiChildFlags.Border))
+            //     ImGui.EndChild();
+            // }
+
+            if(ImGui.BeginChild("Scrolling", default, ImGuiChildFlags.Border))
             {
                 foreach(var str in ConsoleLines.ToString().Split("\n"))
                     ImGui.Text(str);
