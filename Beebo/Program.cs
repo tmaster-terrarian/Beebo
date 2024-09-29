@@ -81,6 +81,7 @@ internal class Program
             LogFile.Write(buffer, i, c);
 
             Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.Write(buffer, i, c);
+            Beebo.Graphics.BeeboImGuiRenderer.scroll = 100000000;
 
             if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
@@ -92,6 +93,7 @@ internal class Program
             LogFile.Write(callback.Value);
 
             Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.Write(callback.Value);
+            Beebo.Graphics.BeeboImGuiRenderer.scroll = 100000000;
 
             if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
@@ -105,6 +107,7 @@ internal class Program
         LogFile.Write(callback.Format, callback.Arg);
 
         Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.Write(callback.Format, callback.Arg);
+        Beebo.Graphics.BeeboImGuiRenderer.scroll = 100000000;
 
         if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
         {
@@ -120,6 +123,7 @@ internal class Program
             LogFile.WriteLine(buffer, i, c);
 
             Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.WriteLine(buffer, i, c);
+            Beebo.Graphics.BeeboImGuiRenderer.scroll = 100000000;
 
             if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
@@ -131,6 +135,7 @@ internal class Program
             LogFile.WriteLine(callback.Value);
 
             Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.WriteLine(callback.Value);
+            Beebo.Graphics.BeeboImGuiRenderer.scroll = 100000000;
 
             if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
@@ -144,6 +149,7 @@ internal class Program
         LogFile.WriteLine(callback.Format, callback.Arg);
 
         Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.WriteLine(callback.Format, callback.Arg);
+        Beebo.Graphics.BeeboImGuiRenderer.scroll = 100000000;
 
         if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
         {

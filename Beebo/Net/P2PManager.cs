@@ -218,7 +218,7 @@ public static class P2PManager
             CurrentLobby = CSteamID.Nil;
             InLobby = false;
 
-            Chat.ChatHistory.Clear();
+            Chat.History.Clear();
 
             SteamManager.Logger.LogInfo($"Lobby left!");
         }

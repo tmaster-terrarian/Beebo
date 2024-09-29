@@ -46,7 +46,7 @@ public class Main : Jelly.GameServer
 
     public static Texture2D? DefaultSteamProfile { get; private set; }
 
-    public static bool PlayerControlsDisabled => Chat.ChatWindowOpen || Instance.Server || !Instance.IsActive;
+    public static bool PlayerControlsDisabled => Instance.Server || Chat.WindowOpen || Input.InputDisabled || BeeboImGuiRenderer.Enabled;
 
     public static string SaveDataPath => Path.Combine(PathBuilder.LocalAppdataPath, AppMetadata.Name);
     public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
@@ -122,10 +122,9 @@ public class Main : Jelly.GameServer
 
         JellyBackend.Initialize(new BeeboContentProvider());
 
-        LocalizationManager.CurrentLanguage = "ja-jp";
+        Commands.Initialize();
 
-        Logger.LogInfo("test: " + LocalizationManager.GetLocalizedValue("test"));
-        Logger.LogInfo("test2: " + LocalizationManager.GetLocalizedValue("test2"));
+        LocalizationManager.CurrentLanguage = "en-us";
 
         BeeboImGuiRenderer.Initialize(this);
 
@@ -180,11 +179,7 @@ public class Main : Jelly.GameServer
 
         if(Input.GetPressed(Buttons.Back) || Input.GetPressed(Keys.Escape))
         {
-            if(BeeboImGuiRenderer.Enabled)
-            {
-                BeeboImGuiRenderer.Enabled = false;
-            }
-            else if(Chat.ChatWindowOpen)
+            if(Chat.WindowOpen)
             {
                 Chat.CancelTypingAndClose();
             }

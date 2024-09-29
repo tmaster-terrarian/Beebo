@@ -5,128 +5,189 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 
-using Beebo.GameContent;
 using Beebo.Net;
 
 using Jelly;
 using Jelly.Graphics;
 
 using Steamworks;
+using Beebo.Graphics;
+using System.Text.RegularExpressions;
 
 namespace Beebo;
 
-public static class Chat
+public static partial class Chat
 {
     private static float chatAlpha;
 
-    public static bool ChatWindowOpen { get; private set; } = false;
-    public static string CurrentChatInput { get; private set; } = "";
+    public static bool WindowOpen { get; private set; } = false;
+    public static string TextInput { get; private set; } = "";
+    public static int Cursor { get; private set; } = 0;
+    public static int Scroll { get; private set; } = 0;
 
-    public static List<Tuple<string, Color>> ChatHistory { get; } = [];
+    public static List<Tuple<string, Color>> History { get; } = [];
 
     public static void CancelTypingAndClose()
     {
-        ChatWindowOpen = false;
-        CurrentChatInput = "";
+        WindowOpen = false;
+        TextInput = "";
+        Cursor = 0;
+        Scroll = 0;
     }
 
     public static void Update()
     {
-        if(ChatWindowOpen)
+        if(WindowOpen)
         {
             List<char> input = [..Input.GetTextInput()];
             bool backspace = input.Remove('\x127');
 
-            CurrentChatInput += string.Join(null, input);
-            CurrentChatInput = CurrentChatInput[..MathHelper.Min(CurrentChatInput.Length, 4096)];
+            int c = TextInput.Length;
 
-            if(backspace && CurrentChatInput.Length > 0)
+            TextInput =
+                (Cursor > 0 ? TextInput[..Cursor] : "") +
+                string.Join(null, input) +
+                (Cursor + input.Count < c ? TextInput[(Cursor + input.Count)..] : "");
+
+            TextInput = TextInput[..MathHelper.Min(TextInput.Length, 10240)];
+
+            if(backspace && TextInput.Length > 0)
             {
-                CurrentChatInput = CurrentChatInput[..^1];
+                TextInput = TextInput[..^1];
             }
+
+            Cursor = MathHelper.Min(Cursor + input.Count, TextInput.Length);
+
+            if(TextInput.StartsWith('/'))
+            {
+                var text = TextInput.Length > 1 ? TextInput[1..] : "";
+                if(TextInput.Length != c)
+                {
+                    Commands.GetSuggestions(text, EntityCommandSource.Default, Cursor - 1);
+                }
+            }
+
+            Scroll += Input.GetScrollDelta();
+            Scroll = MathHelper.Clamp(Scroll, 0, MathHelper.Max(0, History.Count - 5));
         }
 
-        if(Input.GetPressed(Keys.Enter))
+        if(Input.GetPressed(Keys.Enter) && !BeeboImGuiRenderer.Enabled)
         {
-            ChatWindowOpen = !ChatWindowOpen;
-            if(!ChatWindowOpen && CurrentChatInput.Length > 0)
+            WindowOpen = !WindowOpen;
+            if(!WindowOpen && TextInput.Length > 0)
             {
-                string message = CurrentChatInput[..MathHelper.Min(CurrentChatInput.Length, 4096)];
+                string message = TextInput[..MathHelper.Min(TextInput.Length, 10240)];
 
                 WriteChatMessage(message, (!SteamManager.IsSteamRunning) ? CSteamID.Nil : P2PManager.MyID, false);
-                CurrentChatInput = "";
+
+                if(TextInput.StartsWith('/'))
+                {
+                    Commands.ExecuteCommand(TextInput[1..], EntityCommandSource.Default);
+                }
+
+                TextInput = "";
             }
+
+            Cursor = 0;
+            Scroll = 0;
         }
 
-        if(!ChatWindowOpen)
+        if(!WindowOpen)
         {
-            if(Input.GetPressed(Keys.F3))
+            if(Input.GetPressed(Keys.OemQuestion))
             {
-                if(SceneManager.ActiveScene is not null)
-                {
-                    var json = SceneManager.ActiveScene.Serialize(false);
-                    Main.Logger.LogInfo(json);
-                    // var newScene = SceneDef.Deserialize(json);
-                    // Logger.LogInfo(newScene.Serialize(false));
-                }
+                WindowOpen = true;
+                TextInput += "/";
+                Cursor++;
             }
         }
     }
 
     public static void DrawUI()
     {
-        if(ChatWindowOpen || chatAlpha > 0)
+        if(WindowOpen || chatAlpha > 0)
         {
-            const int spaceWidth = 4;
+            const int spaceWidth = 6;
             const int chatWidth = 256;
+            const int lineHeight = 12;
             Point chatPos = new(2, Renderer.ScreenSize.Y - 16);
 
-            float alpha = ChatWindowOpen ? 1 : chatAlpha;
+            float alpha = WindowOpen ? 1 : chatAlpha;
 
-            if(ChatHistory.Count > 0)
+            if(History.Count > 0)
             {
                 Renderer.SpriteBatch.Draw(
                     Renderer.PixelTexture,
                     new Rectangle(
                         chatPos.X,
-                        chatPos.Y - 12 * MathHelper.Min(5, ChatHistory.Count),
+                        chatPos.Y - lineHeight * MathHelper.Min(5, History.Count),
                         chatWidth,
-                        12 * MathHelper.Min(5, ChatHistory.Count)
+                        lineHeight * MathHelper.Min(5, History.Count)
                     ),
                     Color.Black * 0.5f * alpha
                 );
             }
 
-            if(ChatWindowOpen)
+            if(WindowOpen)
             {
-                Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(chatPos.X, chatPos.Y, chatWidth, 12), Color.Black * 0.67f);
+                Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(chatPos.X, chatPos.Y, chatWidth, lineHeight), Color.Black * 0.67f);
 
                 float x = chatWidth - 1 - MathHelper.Max(
                     chatWidth - 1,
-                    Main.RegularFont.MeasureString(CurrentChatInput).X + (CurrentChatInput.Split(' ').Length - 1) * spaceWidth
+                    Main.RegularFont.MeasureString(TextInput).X
                 );
 
                 Renderer.SpriteBatch.DrawStringSpacesFix(
                     Main.RegularFont,
-                    CurrentChatInput,
+                    TextInput,
                     new Vector2(x + chatPos.X + 1, chatPos.Y - 1),
                     Color.White,
                     spaceWidth
                 );
+
+                Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle((int)x + chatPos.X + (int)Main.RegularFont.MeasureString(TextInput[..Cursor]).X, chatPos.Y + 1, 1, 10), Color.White * 0.5f);
             }
 
             for(int i = 0; i < 5; i++)
             {
-                int index = ChatHistory.Count - 1 - i;
+                int index = History.Count - 1 - i - Scroll;
                 if(index < 0) continue;
 
                 Renderer.SpriteBatch.DrawStringSpacesFix(
                     Main.RegularFont,
-                    ChatHistory[index].Item1,
-                    new Vector2(chatPos.X + 1, chatPos.Y - 13 - (i * 12)),
-                    ChatHistory[index].Item2 * alpha,
+                    History[index].Item1,
+                    new Vector2(chatPos.X + 1, chatPos.Y - (lineHeight + 1) - (i * lineHeight)),
+                    History[index].Item2 * alpha,
                     spaceWidth
                 );
+            }
+
+            if(WindowOpen && TextInput.StartsWith('/'))
+            {
+                if((Commands.Suggestions?.List.Count ?? 0) > 0)
+                {
+                    Renderer.SpriteBatch.Draw(
+                        Renderer.PixelTexture,
+                        new Rectangle(
+                            chatPos.X + 5,
+                            chatPos.Y - lineHeight * Commands.Suggestions.List.Count,
+                            chatWidth - 5,
+                            lineHeight * Commands.Suggestions.List.Count
+                        ),
+                        Color.Black * 0.75f
+                    );
+
+                    for(int i = 0; i < Commands.Suggestions.List.Count; i++)
+                    {
+                        Renderer.SpriteBatch.DrawStringSpacesFix(
+                            Main.RegularFont,
+                            Commands.Suggestions.List[i].Text,
+                            new Vector2(chatPos.X + 6, chatPos.Y - (lineHeight + 1) - (i * lineHeight)),
+                            Color.Yellow,
+                            spaceWidth
+                        );
+                    }
+                }
             }
         }
     }
@@ -136,9 +197,9 @@ public static class Chat
         if(system)
         {
             if(!noLog)
-                Main.Logger.LogInfo("Server msg: " + message);
+                Main.Logger.LogInfo("<Server>: " + message);
 
-            ChatHistory.Add(new(message, Color.Yellow));
+            History.Add(new(message, Color.Yellow));
         }
         else
         {
@@ -149,9 +210,9 @@ public static class Chat
             }
 
             if(!noLog)
-                Main.Logger.LogInfo(name + " says: " + message);
+                Main.Logger.LogInfo(name + ": " + message);
 
-            ChatHistory.Add(new($"{name}: {message}", Color.White));
+            History.Add(new($"{name}: {message}", Color.White));
         }
 
         if(Main.GlobalCoroutineRunner.IsRunning(nameof(ChatDisappearDelay)))
@@ -172,4 +233,7 @@ public static class Chat
             yield return null;
         }
     }
+
+    [GeneratedRegex("\\S")]
+    private static partial Regex CheckWhiteSpaces();
 }

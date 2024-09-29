@@ -16,17 +16,21 @@ namespace Beebo.Graphics;
 
 public static class BeeboImGuiRenderer
 {
-    private static bool enabled = true;
+    private static bool enabled = false;
 
     private static System.Numerics.Vector4 _colorV4 = IGui(Color.White);
 
     private static readonly List<float> frameTimes = [];
+
+    private static string commandInput = "";
 
     public static ImGuiRenderer GuiRenderer { get; private set; }
 
     public static bool Enabled { get => enabled; set => enabled = value; }
 
     internal static StringWriter ConsoleLines { get; } = new();
+
+    internal static float scroll = 0;
 
     public static void Initialize(Game game)
     {
@@ -42,7 +46,7 @@ public static class BeeboImGuiRenderer
 
     public static void Update()
     {
-        if(Input.GetPressed(Keys.OemTilde))
+        if(Input.GetPressed(Keys.OemTilde) && !Chat.WindowOpen)
         {
             enabled = !enabled;
         }
@@ -68,7 +72,8 @@ public static class BeeboImGuiRenderer
 
         if(enabled)
         {
-            ImGui.Begin("My First Tool", ref enabled, ImGuiWindowFlags.MenuBar);
+            ImGui.Begin("Debug Panel", ref enabled, ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoScrollbar);
+
             if(ImGui.BeginMenuBar())
             {
                 if(ImGui.BeginMenu("File"))
@@ -99,13 +104,53 @@ public static class BeeboImGuiRenderer
             float[] samples = [..frameTimes];
             ImGui.PlotLines($"FPS: {MathF.Round(1f / System.Linq.Enumerable.Average(frameTimes))}", ref samples[0], 60);
 
-            // Display contents in a scrolling region
-            ImGui.TextColored(IGui(Color.Yellow), "Important Stuff");
+            ImGui.TextColored(IGui(Color.Yellow), "Debug Console");
+            if(ImGui.BeginChild("Console Input", default, ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.ResizeX))
+            {
+                if(ImGui.InputTextWithHint(string.Empty, LocalizationManager.GetLocalizedValue("debug.gui.commandsHint"), ref commandInput, 10000, ImGuiInputTextFlags.EnterReturnsTrue))
+                {
+                    Commands.ExecuteCommand(commandInput, EntityCommandSource.Default);
 
-            if(ImGui.BeginChild("Scrolling", default, ImGuiChildFlags.Border))
+                    commandInput = "";
+                }
+
+                if(Input.GetAnyDown(InputType.Keyboard))
+                {
+                    List<char> input = [..Input.GetTextInput()];
+                    input.Remove('`');
+                    input.Remove('\x127');
+                    input.Remove('\0');
+
+                    commandInput += string.Join(null, input);
+
+                    Commands.GetSuggestions(commandInput, EntityCommandSource.Default);
+                }
+
+                var context = Commands.Dispatcher.Parse(commandInput, EntityCommandSource.Default).Context.FindSuggestionContext(commandInput.Length);
+
+                string[] _sR = Commands.Dispatcher.GetAllUsage(context.Parent, EntityCommandSource.Default, true);
+                int cur = 0;
+
+                ImGui.SameLine();
+                if(ImGui.ListBox(string.Empty, ref cur, _sR, _sR.Length))
+                {
+                    string[] strings = commandInput.Split(' ');
+                    if(strings.Length == 1)
+                        commandInput = commandInput[..MathHelper.Min(commandInput.Length, context.StartPos)] + strings[0];
+                }
+
+                ImGui.EndChild();
+            }
+
+            if(ImGui.BeginChild("Scrolling", new(0, 200), ImGuiChildFlags.Border))
             {
                 foreach(var str in ConsoleLines.ToString().Split("\n"))
                     ImGui.Text(str);
+
+                if(ImGui.GetScrollY() != scroll && scroll != -1)
+                    ImGui.SetScrollY(scroll);
+
+                scroll = -1;
 
                 ImGui.EndChild();
             }

@@ -1,6 +1,7 @@
 using Jelly;
 using Jelly.Components;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 
 namespace Beebo.GameContent.Components;
 
@@ -22,6 +23,8 @@ public class SimplePlayerBehavior : Actor
             inputMapping.Right.IsDown.ToInt32() - inputMapping.Left.IsDown.ToInt32(),
             inputMapping.Down.IsDown.ToInt32() - inputMapping.Up.IsDown.ToInt32()
         );
+
+        if(Main.PlayerControlsDisabled) input = Point.Zero;
 
         var delta = Time.DeltaTime * 60;
 
@@ -102,4 +105,14 @@ public class SimplePlayerBehavior : Actor
             velocity.Y = 0;
         }
     }
+}
+
+public class PlayerInputMapping
+{
+    public MappedInput Right { get; set; } = new(Keys.D);
+    public MappedInput Left { get; set; } = new(Keys.A);
+    public MappedInput Down { get; set; } = new(Keys.S);
+    public MappedInput Up { get; set; } = new(Keys.W);
+    public MappedInput Jump { get; set; } = new(Keys.Space);
+    public MappedInput Fire { get; set; } = new(MouseButtons.LeftButton);
 }

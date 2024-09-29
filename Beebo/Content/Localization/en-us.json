@@ -1,7 +1,6 @@
 {
     "name": "English (US)",
     "values": {
-        "test": "hello",
-        "test2": "hi"
+        "debug.gui.commandsHint": "Type a command or use \"help\" to access the list of all commands"
     }
 }
