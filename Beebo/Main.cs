@@ -24,37 +24,29 @@ namespace Beebo;
 
 public class Main : Jelly.GameServer
 {
+    private readonly GraphicsDeviceManager _graphics;
+    private Camera camera;
+
+    private readonly bool steamFailed;
+
+    private Scene Scene => SceneManager.ActiveScene;
+
     internal static Main Instance { get; private set; } = null;
 
     public static Logger Logger { get; } = new("Main");
 
     public static ulong TotalFrames { get; private set; }
 
+    public static float FreezeTimer { get; set; }
+
     public static CoroutineRunner GlobalCoroutineRunner { get; } = new();
-
-    public static Point MousePosition => new(
-        Mouse.GetState().X / Renderer.PixelScale,
-        Mouse.GetState().Y / Renderer.PixelScale
-    );
-
-    public static Point MousePositionClamped => new(
-        MathHelper.Clamp(Mouse.GetState().X / Renderer.PixelScale, 0, Renderer.ScreenSize.X - 1),
-        MathHelper.Clamp(Mouse.GetState().Y / Renderer.PixelScale, 0, Renderer.ScreenSize.Y - 1)
-    );
 
     public static int NetID => P2PManager.GetMemberIndex(P2PManager.MyID);
     public static bool IsHost => P2PManager.GetLobbyOwner() == P2PManager.MyID;
 
-    public static List<Tuple<string, Color>> ChatHistory { get; } = [];
-
     public static Texture2D? DefaultSteamProfile { get; private set; }
 
-    public static float FreezeTimer { get; set; }
-
-    public static bool ChatWindowOpen { get; private set; } = false;
-    public static string CurrentChatInput { get; private set; } = "";
-
-    public static bool PlayerControlsDisabled => ChatWindowOpen || Instance.Server || !Instance.IsActive;
+    public static bool PlayerControlsDisabled => Chat.ChatWindowOpen || Instance.Server || !Instance.IsActive;
 
     public static string SaveDataPath => Path.Combine(PathBuilder.LocalAppdataPath, AppMetadata.Name);
     public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
@@ -63,13 +55,6 @@ public class Main : Jelly.GameServer
     public static SpriteFont RegularFontBold { get; private set; }
 
     public static Dictionary<CSteamID, Texture2D> AlreadyLoadedAvatars { get; } = [];
-
-    private readonly GraphicsDeviceManager _graphics;
-    private Camera camera;
-
-    private readonly bool steamFailed;
-
-    private Scene Scene => SceneManager.ActiveScene;
 
     public static class Debug
     {
@@ -137,7 +122,7 @@ public class Main : Jelly.GameServer
 
         JellyBackend.Initialize(new BeeboContentProvider());
 
-        LocalizationManager.CurrentLanguage = "jp-jp";
+        LocalizationManager.CurrentLanguage = "ja-jp";
 
         Logger.LogInfo("test: " + LocalizationManager.GetLocalizedValue("test"));
         Logger.LogInfo("test2: " + LocalizationManager.GetLocalizedValue("test2"));
@@ -180,12 +165,11 @@ public class Main : Jelly.GameServer
 
     protected override void Update(GameTime gameTime)
     {
-        var delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        JellyBackend.PreUpdate(delta);
+        JellyBackend.PreUpdate(gameTime);
 
         if(!Server)
         {
-            Input.IgnoreInput = !IsActive;
+            Input.InputDisabled = !IsActive;
 
             Input.RefreshKeyboardState();
             Input.RefreshMouseState();
@@ -196,10 +180,13 @@ public class Main : Jelly.GameServer
 
         if(Input.GetPressed(Buttons.Back) || Input.GetPressed(Keys.Escape))
         {
-            if(ChatWindowOpen)
+            if(BeeboImGuiRenderer.Enabled)
             {
-                ChatWindowOpen = false;
-                CurrentChatInput = "";
+                BeeboImGuiRenderer.Enabled = false;
+            }
+            else if(Chat.ChatWindowOpen)
+            {
+                Chat.CancelTypingAndClose();
             }
             else
             {
@@ -219,10 +206,10 @@ public class Main : Jelly.GameServer
             // P2PManager.ReadAvailablePackets();
         }
 
-        GlobalCoroutineRunner.Update(delta);
+        GlobalCoroutineRunner.Update(Time.UnscaledDeltaTime);
 
         if(FreezeTimer > 0)
-            FreezeTimer = Math.Max(FreezeTimer - Time.DeltaTime, 0);
+            FreezeTimer = Math.Max(FreezeTimer - Time.UnscaledDeltaTime, 0);
         else
         {
             Scene?.PreUpdate();
@@ -230,53 +217,15 @@ public class Main : Jelly.GameServer
             Scene?.PostUpdate();
         }
 
-        if(ChatWindowOpen)
-        {
-            List<char> input = [..Input.GetTextInput()];
-            bool backspace = input.Remove('\x127');
-
-            CurrentChatInput += string.Join(null, input);
-            CurrentChatInput = CurrentChatInput[..MathHelper.Min(CurrentChatInput.Length, 4096)];
-
-            if(backspace && CurrentChatInput.Length > 0)
-            {
-                CurrentChatInput = CurrentChatInput[..^1];
-            }
-        }
-
-        if(Input.GetPressed(Keys.Enter))
-        {
-            ChatWindowOpen = !ChatWindowOpen;
-            if(!ChatWindowOpen && CurrentChatInput.Length > 0)
-            {
-                string message = CurrentChatInput[..MathHelper.Min(CurrentChatInput.Length, 4096)];
-
-                WriteChatMessage(message, (!SteamManager.IsSteamRunning) ? CSteamID.Nil : P2PManager.MyID, false);
-                CurrentChatInput = "";
-            }
-        }
-
-        if(!ChatWindowOpen)
-        {
-            if(Input.GetPressed(Keys.F3))
-            {
-                if(SceneManager.ActiveScene is not null)
-                {
-                    var json = SceneManager.ActiveScene.Serialize(false);
-                    Logger.LogInfo(json);
-                    // var newScene = SceneDef.Deserialize(json);
-                    // Logger.LogInfo(newScene.Serialize(false));
-                }
-            }
-        }
+        Chat.Update();
 
         camera.Update();
 
-        JellyBackend.PostUpdate(delta);
+        JellyBackend.PostUpdate();
 
         base.Update(gameTime);
 
-        BeeboImGuiRenderer.Update(gameTime);
+        BeeboImGuiRenderer.Update();
 
         TotalFrames++;
     }
@@ -305,69 +254,16 @@ public class Main : Jelly.GameServer
 
         Scene?.DrawUI();
 
-        BeeboImGuiRenderer.DrawUI(gameTime);
+        BeeboImGuiRenderer.DrawUI();
 
-        if(ChatWindowOpen || chatAlpha > 0)
-        {
-            int spaceWidth = 4;
-            int chatWidth = 256;
-            Point chatPos = new(2, Renderer.ScreenSize.Y - 16);
-
-            float alpha = ChatWindowOpen ? 1 : chatAlpha;
-
-            if(ChatHistory.Count > 0)
-            {
-                Renderer.SpriteBatch.Draw(
-                    Renderer.PixelTexture,
-                    new Rectangle(
-                        chatPos.X,
-                        chatPos.Y - 12 * MathHelper.Min(5, ChatHistory.Count),
-                        chatWidth,
-                        12 * MathHelper.Min(5, ChatHistory.Count)
-                    ),
-                    Color.Black * 0.5f * alpha
-                );
-            }
-
-            if(ChatWindowOpen)
-            {
-                Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(chatPos.X, chatPos.Y, chatWidth, 12), Color.Black * 0.67f);
-
-                float x = chatWidth - 1 - MathHelper.Max(
-                    chatWidth - 1,
-                    RegularFont.MeasureString(CurrentChatInput).X + (CurrentChatInput.Split(' ').Length - 1) * spaceWidth
-                );
-
-                Renderer.SpriteBatch.DrawStringSpacesFix(
-                    RegularFont,
-                    CurrentChatInput,
-                    new Vector2(x + chatPos.X + 1, chatPos.Y - 1),
-                    Color.White,
-                    spaceWidth
-                );
-            }
-
-            for(int i = 0; i < 5; i++)
-            {
-                int index = ChatHistory.Count - 1 - i;
-                if(index < 0) continue;
-
-                Renderer.SpriteBatch.DrawStringSpacesFix(
-                    RegularFont,
-                    ChatHistory[index].Item1,
-                    new Vector2(chatPos.X + 1, chatPos.Y - 13 - (i * 12)),
-                    ChatHistory[index].Item2 * alpha,
-                    spaceWidth
-                );
-            }
-        }
+        Chat.DrawUI();
 
         Renderer.EndDrawUI();
         Renderer.FinalizeDraw();
 
         base.Draw(gameTime);
 
-        BeeboImGuiRenderer.PostDraw(gameTime);
+        BeeboImGuiRenderer.PostDraw();
     }
 
     private void SceneChanged(Scene oldScene, Scene newScene)
@@ -396,34 +292,6 @@ public class Main : Jelly.GameServer
                 break;
             }
         }
-    }
-
-    public static void WriteChatMessage(string message, CSteamID origin, bool system = false, bool noLog = false)
-    {
-        if(system)
-        {
-            if(!noLog)
-                Logger.LogInfo("Server msg: " + message);
-
-            ChatHistory.Add(new(message, Color.Yellow));
-        }
-        else
-        {
-            string name = "???";
-            if(SteamManager.IsSteamRunning && origin != CSteamID.Nil)
-            {
-                name = SteamFriends.GetFriendPersonaName(origin);
-            }
-
-            if(!noLog)
-                Logger.LogInfo(name + " says: " + message);
-
-            ChatHistory.Add(new($"{name}: {message}", Color.White));
-        }
-
-        if(GlobalCoroutineRunner.IsRunning(nameof(ChatDisappearDelay)))
-            GlobalCoroutineRunner.Stop(nameof(ChatDisappearDelay));
-        GlobalCoroutineRunner.Run(nameof(ChatDisappearDelay), ChatDisappearDelay());
     }
 
     private static void OnSceneTransition(Scene from, Scene to)
@@ -520,22 +388,6 @@ public class Main : Jelly.GameServer
         AlreadyLoadedAvatars.Remove(cSteamID);
         AlreadyLoadedAvatars.Add(cSteamID, DefaultSteamProfile);
         return DefaultSteamProfile;
-    }
-
-    static float chatAlpha;
-
-    static IEnumerator ChatDisappearDelay(float holdTime = 5f, float fadeTime = 1f)
-    {
-        chatAlpha = 1;
-
-        yield return holdTime;
-
-        while(chatAlpha > 0)
-        {
-            float interval = (float)Instance.TargetElapsedTime.TotalSeconds;
-            chatAlpha -= interval / fadeTime;
-            yield return null;
-        }
     }
 
     private static readonly List<string> missingAssets = [];

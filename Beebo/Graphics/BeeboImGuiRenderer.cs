@@ -10,6 +10,7 @@ using MonoGame.ImGuiNet;
 using System;
 using Jelly.Graphics;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Beebo.Graphics;
 
@@ -17,17 +18,21 @@ public static class BeeboImGuiRenderer
 {
     private static bool enabled = true;
 
-    private static System.Numerics.Vector4 _colorV4 = IGui(Color.CornflowerBlue);
+    private static System.Numerics.Vector4 _colorV4 = IGui(Color.White);
 
     private static readonly List<float> frameTimes = [];
 
-    public static ImGuiRenderer GuiRenderer { get; set; }
+    public static ImGuiRenderer GuiRenderer { get; private set; }
 
     public static bool Enabled { get => enabled; set => enabled = value; }
+
+    internal static StringWriter ConsoleLines { get; } = new();
 
     public static void Initialize(Game game)
     {
         GuiRenderer = new(game);
+
+        ConsoleLines.NewLine = "\n";
     }
 
     public static void LoadContent(ContentManager content)
@@ -35,33 +40,33 @@ public static class BeeboImGuiRenderer
         GuiRenderer.RebuildFontAtlas();
     }
 
-    public static void Update(GameTime gameTime)
+    public static void Update()
     {
         if(Input.GetPressed(Keys.OemTilde))
         {
-            Enabled = !Enabled;
+            enabled = !enabled;
         }
     }
 
-    public static void DrawUI(GameTime gameTime)
+    public static void DrawUI()
     {
-        if(!Enabled) return;
+        if(!enabled) return;
 
         var v = new Vector4(_colorV4.X, _colorV4.Y, _colorV4.Z, _colorV4.W) * new Vector4(_colorV4.W, _colorV4.W, _colorV4.W, 1);
 
         Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(2, 2, 10, 10), new Color(v));
     }
 
-    public static void PostDraw(GameTime gameTime)
+    public static void PostDraw()
     {
         while(frameTimes.Count < 59) frameTimes.Add(1/60f);
-        frameTimes.Add((float)gameTime.ElapsedGameTime.TotalSeconds);
+        frameTimes.Add((float)Time.GameTime.ElapsedGameTime.TotalSeconds);
         if(frameTimes.Count > 60)
             frameTimes.RemoveAt(0);
 
-        GuiRenderer.BeginLayout(gameTime);
+        GuiRenderer.BeginLayout(Time.GameTime);
 
-        if(Enabled)
+        if(enabled)
         {
             ImGui.Begin("My First Tool", ref enabled, ImGuiWindowFlags.MenuBar);
             if(ImGui.BeginMenuBar())
@@ -80,7 +85,7 @@ public static class BeeboImGuiRenderer
 
                     if(ImGui.MenuItem("Close", "Ctrl+W"))
                     {
-                        Enabled = false;
+                        enabled = false;
                     }
 
                     ImGui.EndMenu();
@@ -96,10 +101,14 @@ public static class BeeboImGuiRenderer
 
             // Display contents in a scrolling region
             ImGui.TextColored(IGui(Color.Yellow), "Important Stuff");
-            ImGui.BeginChild("Scrolling", System.Numerics.Vector2.Zero, ImGuiChildFlags.Border);
-                for (var n = 0; n < 50; n++)
-                    ImGui.Text($"{n:0000}: Some text");
-            ImGui.EndChild();
+
+            if(ImGui.BeginChild("Scrolling", default, ImGuiChildFlags.Border))
+            {
+                foreach(var str in ConsoleLines.ToString().Split("\n"))
+                    ImGui.Text(str);
+
+                ImGui.EndChild();
+            }
 
             ImGui.End();
         }

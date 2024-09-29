@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+
+using Beebo;
+
 using Jelly;
+
 using Steamworks;
 
 internal class Program
@@ -20,6 +24,7 @@ internal class Program
     {
         LogFile = File.CreateText(Path.Combine(Beebo.Main.ProgramPath, "latest.log"));
         LogFile.AutoFlush = true;
+        LogFile.NewLine = "\n";
 
         oldOut = Console.Out;
         oldError = Console.Error;
@@ -39,7 +44,7 @@ internal class Program
         Console.SetOut(_consoleOut);
         Console.SetError(_consoleError);
 
-        using var game = new Beebo.Main();
+        using var game = new Main();
 
         if(args.Length > 0)
         {
@@ -49,8 +54,8 @@ internal class Program
                 UseSteamworks = false;
 
             {
-                int idx = list.IndexOf("+connect_lobby") + 1;
-                if(idx > 0)
+                int idx;
+                if((idx = list.IndexOf("+connect_lobby") + 1) > 0)
                 {
                     if(idx < list.Count && ulong.TryParse(list[idx], System.Globalization.NumberStyles.Integer, null, out ulong res))
                         LobbyToJoin = res;
@@ -72,22 +77,25 @@ internal class Program
     {
         if(callback.Value is char[] buffer)
         {
-            LogFile.Write(buffer, callback.Index ?? 0, callback.Count ?? buffer.Length);
+            int i = callback.Index ?? 0, c = callback.Count ?? buffer.Length;
+            LogFile.Write(buffer, i, c);
+
+            Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.Write(buffer, i, c);
 
             if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
-                int i = callback.Index ?? 0;
-                int i2 = i + (callback.Count ?? buffer.Length) - 1;
-                Beebo.Main.WriteChatMessage(string.Concat(buffer[i..i2]), CSteamID.Nil, true, true);
+                Chat.WriteChatMessage(string.Concat(string.Concat(buffer[i..(i + c)])), CSteamID.Nil, true, true);
             }
         }
         else
         {
             LogFile.Write(callback.Value);
 
+            Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.Write(callback.Value);
+
             if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
-                Beebo.Main.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
+                Chat.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
             }
         }
     }
@@ -96,9 +104,11 @@ internal class Program
     {
         LogFile.Write(callback.Format, callback.Arg);
 
+        Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.Write(callback.Format, callback.Arg);
+
         if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
         {
-            Beebo.Main.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
+            Chat.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
         }
     }
 
@@ -106,22 +116,25 @@ internal class Program
     {
         if(callback.Value is char[] buffer)
         {
-            LogFile.WriteLine(buffer, callback.Index ?? 0, callback.Count ?? buffer.Length);
+            int i = callback.Index ?? 0, c = callback.Count ?? buffer.Length;
+            LogFile.WriteLine(buffer, i, c);
+
+            Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.WriteLine(buffer, i, c);
 
             if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
-                int i = callback.Index ?? 0;
-                int i2 = i + (callback.Count ?? buffer.Length) - 1;
-                Beebo.Main.WriteChatMessage(string.Concat(buffer[i..i2]), CSteamID.Nil, true, true);
+                Chat.WriteChatMessage(string.Concat(buffer[i..(i + c)]), CSteamID.Nil, true, true);
             }
         }
         else
         {
             LogFile.WriteLine(callback.Value);
 
+            Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.WriteLine(callback.Value);
+
             if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
             {
-                Beebo.Main.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
+                Chat.WriteChatMessage(callback.Value.ToString(), CSteamID.Nil, true, true);
             }
         }
     }
@@ -130,9 +143,11 @@ internal class Program
     {
         LogFile.WriteLine(callback.Format, callback.Arg);
 
+        Beebo.Graphics.BeeboImGuiRenderer.ConsoleLines.WriteLine(callback.Format, callback.Arg);
+
         if(JellyBackend.DebugEnabled && Beebo.Main.Debug.LogToChat)
         {
-            Beebo.Main.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
+            Chat.WriteChatMessage(string.Format(callback.Format, callback.Arg), CSteamID.Nil, true, true);
         }
     }
 }

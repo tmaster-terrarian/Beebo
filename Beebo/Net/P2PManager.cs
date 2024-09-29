@@ -110,12 +110,12 @@ public static class P2PManager
                     // }
                     case PacketType.ChatMessage:
                     {
-                        Main.WriteChatMessage(dataString, steamIDRemote);
+                        Chat.WriteChatMessage(dataString, steamIDRemote);
                         break;
                     }
                     case PacketType.ChatMessage2:
                     {
-                        Main.WriteChatMessage(dataString, steamIDRemote, true);
+                        Chat.WriteChatMessage(dataString, steamIDRemote, true);
                         break;
                     }
                     case PacketType.SceneChange:
@@ -218,7 +218,7 @@ public static class P2PManager
             CurrentLobby = CSteamID.Nil;
             InLobby = false;
 
-            Main.ChatHistory.Clear();
+            Chat.ChatHistory.Clear();
 
             SteamManager.Logger.LogInfo($"Lobby left!");
         }
@@ -247,7 +247,7 @@ public static class P2PManager
 
         // SendP2PPacketString(PacketType.ChatMessage2, $"{SteamFriends.GetFriendPersonaName(oldOwner)} has transferred ownership of the lobby to {SteamFriends.GetFriendPersonaName(newOwner)}.", PacketSendMethod.Reliable);
 
-        Main.WriteChatMessage(message, MyID, true);
+        Chat.WriteChatMessage(message, MyID, true);
         SendP2PPacketString(PacketType.ChatMessage2, message, PacketSendMethod.Reliable);
 
         SteamMatchmaking.SetLobbyOwner(CurrentLobby, newOwner);
@@ -368,7 +368,7 @@ public static class P2PManager
 
             if(message is not null)
             {
-                Main.WriteChatMessage(message, idChanged, true);
+                Chat.WriteChatMessage(message, idChanged, true);
                 SendP2PPacketString(PacketType.ChatMessage2, message, PacketSendMethod.Reliable);
             }
         }
