@@ -5,7 +5,7 @@ using Jelly.GameContent;
 
 namespace Beebo.GameContent;
 
-public class ComponentTypeDef : ContentDef
+public class ComponentTypeDef : RegistryEntry
 {
     public Type ComponentType { get; set; }
 

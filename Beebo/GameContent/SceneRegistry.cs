@@ -21,12 +21,10 @@ public class SceneRegistry : Registry<SceneDef>
             Add(fileName);
         }
 
-        SceneDef test = new()
-        {
+        SceneDef test = new() {
             Name = "Test",
             Entities = [
-                new JsonEntity()
-                {
+                new JsonEntity {
                     Position = new(178, 182),
                     Enabled = true,
                     Visible = true,

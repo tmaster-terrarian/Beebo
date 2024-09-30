@@ -3,7 +3,7 @@ using Jelly.GameContent;
 
 namespace Beebo.GameContent;
 
-public class EntityDef : ContentDef
+public class EntityDef : RegistryEntry
 {
     public virtual void OnCreate(Entity entity) {}
 }

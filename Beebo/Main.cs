@@ -18,41 +18,35 @@ using Jelly.Graphics;
 using Jelly.IO;
 
 using Steamworks;
-using Jelly.Localization;
 
 namespace Beebo;
 
 public class Main : Jelly.GameServer
 {
-    private readonly GraphicsDeviceManager _graphics;
-    private Camera camera;
-
-    private readonly bool steamFailed;
-
-    private Scene Scene => SceneManager.ActiveScene;
-
     internal static Main Instance { get; private set; } = null;
+
+    private readonly GraphicsDeviceManager _graphics;
+
+    private static bool steamFailed;
+    private static Camera camera;
+    private static Scene Scene => SceneManager.ActiveScene;
 
     public static Logger Logger { get; } = new("Main");
 
+    public static Camera Camera => camera;
+
     public static ulong TotalFrames { get; private set; }
-
     public static float FreezeTimer { get; set; }
-
     public static CoroutineRunner GlobalCoroutineRunner { get; } = new();
+
+    public static bool PlayerControlsDisabled => Instance.Server || Chat.WindowOpen || Input.InputDisabled || BeeboImGuiRenderer.Enabled || FreezeTimer > 0;
 
     public static int NetID => P2PManager.GetMemberIndex(P2PManager.MyID);
     public static bool IsHost => P2PManager.GetLobbyOwner() == P2PManager.MyID;
-
     public static Texture2D? DefaultSteamProfile { get; private set; }
-
-    public static bool PlayerControlsDisabled => Instance.Server || Chat.WindowOpen || Input.InputDisabled || BeeboImGuiRenderer.Enabled;
 
     public static string SaveDataPath => Path.Combine(PathBuilder.LocalAppdataPath, AppMetadata.Name);
     public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
-
-    public static SpriteFont RegularFont { get; private set; }
-    public static SpriteFont RegularFontBold { get; private set; }
 
     public static Dictionary<CSteamID, Texture2D> AlreadyLoadedAvatars { get; } = [];
 
@@ -63,22 +57,15 @@ public class Main : Jelly.GameServer
 
     public Main() : base()
     {
-        if(Instance is not null) throw new Exception("You can't start the game more than once 4head");
-
+        if(Instance is not null)
+            throw new InvalidOperationException("You can't start the game more than once 4head");
         Instance = this;
 
         #if DEBUG
         JellyBackend.DebugEnabled = true;
         #endif
 
-        _graphics = new GraphicsDeviceManager(this)
-        {
-            PreferMultiSampling = false,
-            SynchronizeWithVerticalRetrace = true,
-            PreferredBackBufferWidth = Renderer.ScreenSize.X * Renderer.PixelScale,
-            PreferredBackBufferHeight = Renderer.ScreenSize.Y * Renderer.PixelScale,
-            GraphicsProfile = GraphicsProfile.HiDef,
-        };
+        _graphics = Renderer.GetDefaultGraphicsDeviceManager(this);
 
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
@@ -144,8 +131,7 @@ public class Main : Jelly.GameServer
 
         Renderer.LoadContent(Content);
 
-        RegularFont = Content.Load<SpriteFont>("Fonts/default");
-        RegularFontBold = Content.Load<SpriteFont>("Fonts/defaultBold");
+        MasterRenderer.LoadContent(Content);
 
         DefaultSteamProfile = Content.Load<Texture2D>("Images/UI/Multiplayer/DefaultProfile");
 
@@ -212,7 +198,7 @@ public class Main : Jelly.GameServer
             Scene?.PostUpdate();
         }
 
-        Chat.Update();
+        Chat.Update(gameTime);
 
         camera.Update();
 
@@ -283,7 +269,7 @@ public class Main : Jelly.GameServer
             case ReadinessReason.WaitForSceneLoad:
             {
                 Logger.LogInfo("All players have finished loading, beginning scene");
-                Instance.Scene?.Begin();
+                    Scene?.Begin();
                 break;
             }
         }
@@ -314,7 +300,7 @@ public class Main : Jelly.GameServer
         using var stream = new MemoryStream();
         var binaryWriter = new BinaryWriter(stream);
 
-        binaryWriter.Write(Instance.Scene.Serialize());
+        binaryWriter.Write(Scene.Serialize());
 
         return stream.GetBuffer();
     }

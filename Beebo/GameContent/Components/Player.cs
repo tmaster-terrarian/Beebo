@@ -6,6 +6,8 @@ using Microsoft.Xna.Framework.Graphics;
 using Jelly;
 using Jelly.Components;
 using Microsoft.Xna.Framework.Input;
+using System;
+using Jelly.Graphics;
 
 namespace Beebo.GameContent.Components;
 
@@ -19,7 +21,7 @@ public enum PlayerState
 
 public class Player : Actor
 {
-    private static readonly System.Random nugdeRandom = new();
+    private static readonly Random nugdeRandom = new();
 
     private PlayerState _state = PlayerState.Normal; // please do NOT touch this thx
     private bool _stateJustChanged;
@@ -41,6 +43,9 @@ public class Player : Actor
     private bool useGravity = true;
     private bool jumpCancelled;
     private bool running;
+    private int inputDir;
+    private bool wasOnGround;
+    private bool onJumpthrough;
 
     private bool fxTrail;
     private int fxTrailCounter;
@@ -50,6 +55,10 @@ public class Player : Actor
     private readonly List<int> frameCounts = [];
     private int textureIndex;
     private float frame;
+
+    private float hp = 100;
+
+    private SpriteComponent Sprite => Entity.GetComponent<SpriteComponent>();
 
     class AfterImage
     {
@@ -63,28 +72,44 @@ public class Player : Actor
         public float Rotation;
     }
 
-    private float hp = 100;
-
     enum TextureIndex
     {
         Idle,
         Running
     }
 
-    private readonly PlayerInputMapping inputMapping = new() {
+    public PlayerInputMapping InputMapping { get; } = new() {
         
     };
 
-    public PlayerInputMapping InputMapping => inputMapping;
+    public PlayerState State {
+        get => _state;
+        set {
+            if(value < 0 || value > PlayerState.Dead) value = PlayerState.IgnoreState;
+
+            if(_state != value)
+            {
+                _stateJustChanged = true;
+                stateTimer = 0;
+
+                OnStateExit(_state);
+                OnStateEnter(value);
+
+                _state = value;
+            }
+        }
+    }
+
+    protected bool FaceTowardsMouse { get; set; }
 
     public bool UseGamePad { get; set; }
     public PlayerIndex GamePadIndex { get; set; }
 
     public bool Dead { get; private set; }
 
-    public override void EntityAwake()
+    public override void OnCreated()
     {
-        string texPath = "Images/Player/";
+        string texPath = "Images/Players/";
         void addTex(string path, int count = 1) => AddTexture(Main.LoadContent<Texture2D>(texPath + path), count);
 
         addTex("idle");
@@ -99,7 +124,78 @@ public class Player : Actor
         frameCounts.Add(frameCount);
     }
 
-    void OnStateEnter(PlayerState state)
+    public override void Update()
+    {
+        inputDir = InputMapping.Right.IsDown.ToInt32() - InputMapping.Left.IsDown.ToInt32();
+
+        wasOnGround = OnGround;
+        onJumpthrough = CheckCollidingJumpthrough(BottomEdge.Shift(0, 1));
+        if(onJumpthrough) OnGround = true;
+        else OnGround = CheckColliding(BottomEdge.Shift(0, 1));
+
+        if(!wasOnGround && OnGround)
+        {
+            jumpCancelled = false;
+        }
+
+        RecalculateStats();
+
+        StateUpdate();
+
+        if(!OnGround && useGravity)
+        {
+            if(velocity.Y >= 0.1)
+                velocity.Y = Util.Approach(velocity.Y, 20, gravity);
+            if(velocity.Y < 0)
+                velocity.Y = Util.Approach(velocity.Y, 20, gravity);
+            else if (velocity.Y < 2)
+                velocity.Y = Util.Approach(velocity.Y, 20, gravity * 0.25f);
+        }
+
+        MoveX(velocity.X, () => {
+            velocity.X = 0;
+        });
+        MoveY(velocity.Y, () => {
+            if(!(InputMapping.Down.IsDown && CheckCollidingJumpthrough(BottomEdge.Shift(new(0, 1)))))
+                velocity.Y = 0;
+        });
+
+        if(fxTrail)
+        {
+            fxTrailCounter++;
+            if(fxTrailCounter >= 2)
+            {
+                fxTrailCounter = 0;
+                afterImages.Add(new AfterImage {
+                    TextureIndex = textureIndex,
+                    Frame = (int)frame,
+                    Position = Entity.Position,
+                    Facing = Facing,
+                    Scale = Sprite.Scale,
+                    Color = Sprite.Color,
+                    Rotation = Sprite.Rotation
+                });
+            }
+        }
+        else
+        {
+            fxTrailCounter = 0;
+        }
+
+        for(int i = 0; i < afterImages.Count; i++)
+        {
+            AfterImage image = afterImages[i];
+
+            image.Alpha = MathHelper.Max(image.Alpha - (1/12f), 0);
+            if(image.Alpha == 0)
+            {
+                afterImages.RemoveAt(i);
+                i--;
+            }
+        }
+    }
+
+    private void OnStateEnter(PlayerState state)
     {
         switch(state)
         {
@@ -125,6 +221,117 @@ public class Player : Actor
         }
     }
 
+    private void StateUpdate()
+    {
+        if(!_stateJustChanged)
+        {
+            useGravity = false;
+            CollidesWithJumpthroughs = true;
+            CollidesWithSolids = true;
+        }
+        else
+        {
+            _stateJustChanged = false;
+        }
+
+        switch(State)
+        {
+            case PlayerState.StandIdle:
+                useGravity = true;
+
+                velocity.X = Util.Approach(velocity.X, 0, fric * 2);
+
+                if(OnGround)
+                {
+                    textureIndex = (int)TextureIndex.Idle;
+                }
+
+                break;
+            case PlayerState.Normal:
+                useGravity = true;
+
+                if(inputDir != 0)
+                {
+                    Facing = inputDir;
+
+                    if(FaceTowardsMouse)
+                        Facing = Math.Sign(Main.Camera.MousePositionInWorld.X - Center.X);
+
+                    if(OnGround)
+                    {
+                        running = true;
+
+                        if(velocity.Y >= 0)
+                        {
+                            textureIndex = (int)TextureIndex.Running;
+                        }
+                    }
+
+                    if(inputDir * velocity.X < 0)
+                    {
+                        velocity.X = Util.Approach(velocity.X, 0, fric);
+                    }
+                    if(inputDir * velocity.X < moveSpeed)
+                    {
+                        velocity.X = Util.Approach(velocity.X, inputDir * moveSpeed, accel);
+                    }
+
+                    if(inputDir * velocity.X > moveSpeed && OnGround)
+                    {
+                        velocity.X = Util.Approach(velocity.X, inputDir * moveSpeed, fric/3);
+                    }
+                }
+                else
+                {
+                    running = false;
+                    velocity.X = Util.Approach(velocity.X, 0, fric * 2);
+
+                    if(OnGround && Math.Abs(velocity.X) < 1.5f)
+                    {
+                        textureIndex = (int)TextureIndex.Idle;
+                    }
+                }
+
+                if(!OnGround)
+                {
+                    if(InputMapping.Down.Released && velocity.Y < 0 && !jumpCancelled)
+                    {
+                        jumpCancelled = true;
+                        velocity.Y /= 2;
+                    }
+                }
+                else
+                {
+                    if(onJumpthrough && InputMapping.Down.IsDown && !CheckColliding(BottomEdge.Shift(new(0, 2)), true))
+                    {
+                        Entity.Y += 2;
+
+                        onJumpthrough = CheckCollidingJumpthrough(BottomEdge.Shift(0, 1));
+                        if(onJumpthrough) OnGround = true;
+                        else OnGround = CheckColliding(BottomEdge.Shift(0, 1));
+                    }
+                }
+
+                if(running)
+                {
+                    frame += Math.Abs(velocity.X) / frameCounts[textureIndex] / 2.5f;
+                }
+
+                fxTrail = Math.Abs(velocity.X) > 1f * moveSpeed;
+
+                // ...
+
+                if(OnGround && InputMapping.Jump.Pressed)
+                {
+                    velocity.Y = jumpSpeed;
+                }
+
+                break;
+            case PlayerState.IgnoreState: default:
+                break;
+        }
+    }
+
     private void OnStateExit(PlayerState state)
     {
         switch(state)
@@ -137,34 +344,6 @@ public class Player : Actor
                 break;
             case PlayerState.Dead:
                 break;
-        }
-    }
-
-    public override void Update()
-    {
-        int inputDir = InputMapping.Right.IsDown.ToInt32() - InputMapping.Left.IsDown.ToInt32();
-
-        bool wasOnGround = OnGround;
-        bool onJumpthrough = CheckCollidingJumpthrough(BottomEdge.Shift(0, 1));
-        if(onJumpthrough) OnGround = true;
-        else OnGround = CheckColliding(BottomEdge.Shift(0, 1));
-
-        if(!wasOnGround && OnGround)
-        {
-            jumpCancelled = false;
-        }
-
-        RecalculateStats();
-
-        if(!_stateJustChanged)
-        {
-            useGravity = false;
-            CollidesWithJumpthroughs = true;
-            CollidesWithSolids = true;
-        }
-        else
-        {
-            _stateJustChanged = false;
         }
     }
 

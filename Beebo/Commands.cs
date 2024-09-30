@@ -27,10 +27,17 @@ public static class Commands
             l.Literal("foo")
                 .Then(a =>
                     a.Argument("bar", Arguments.Integer())
+                    .Then(a => 
+                        a.Literal("hi")
                         .Executes(c => {
-                            Log("Bar is " + Arguments.GetInteger(c, "bar"));
+                            Log("hello :)");
                             return 1;
                         })
+                    )
+                    .Executes(c => {
+                        Log("Bar is " + Arguments.GetInteger(c, "bar"));
+                        return 1;
+                    })
                 )
                 .Executes(c => {
                     Log("Called foo with no arguments");
@@ -44,7 +51,7 @@ public static class Commands
                     a.Argument("command", Arguments.Word())
                         .Executes(c => {
                             var name = Arguments.GetString(c, "command");
-                            Log($"Name: {name}\n\nUsage:\n  {name} " + string.Join($"\n  {name} ", dispatcher.GetAllUsage(dispatcher.GetRoot().GetChild(name), c.Source, false)));
+                            Log($"Name: {name}\n\nUsage:\n  {name} " + string.Join($"\n  {name} ", dispatcher.GetSmartUsage(dispatcher.GetRoot().GetChild(name), c.Source).Values));
                             return 1;
                         })
                 )
@@ -58,6 +65,29 @@ public static class Commands
                     Log("Available commands:\n  - " + string.Join("\n  - ", strings));
                     return 1;
                 })
+        );
+
+        static int AAA(Brigadier.NET.Context.CommandContext<EntityCommandSource> c)
+        {
+            return 1;
+        }
+
+        dispatcher.Register(l =>
+            l.Literal("a")
+                .Then(a => a.Literal("1").Executes(AAA))
+                .Then(a => a.Literal("2").Executes(AAA))
+                .Then(a => a.Literal("3").Executes(AAA))
+                .Then(a => a.Literal("4").Executes(AAA))
+                .Then(a => a.Literal("5").Executes(AAA))
+                .Then(a => a.Literal("6").Executes(AAA))
+                .Then(a => a.Literal("7").Executes(AAA))
+                .Then(a => a.Literal("8").Executes(AAA))
+                .Then(a => a.Literal("9").Executes(AAA))
+                .Then(a => a.Literal("10").Executes(AAA))
+                .Then(a => a.Literal("11").Executes(AAA))
+                .Then(a => a.Literal("12").Executes(AAA))
+                .Then(a => a.Literal("13").Executes(AAA))
+                .Then(a => a.Literal("14").Executes(AAA))
         );
     }
 

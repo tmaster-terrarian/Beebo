@@ -9,16 +9,17 @@ namespace Beebo.GameContent;
 
 public static class RegistryManager
 {
-    public static ComponentRegistry ComponentRegistry { get; } = new();
-    public static EntityRegistry EntityRegistry { get; } = new();
-    public static SceneRegistry SceneRegistry { get; } = new();
-
-    public static PolymorphicTypeResolver TypeResolver { get; } = new([typeof(Component), typeof(JsonEntity)]);
-
-    public static JsonSerializerOptions SerializerOptions => new()
+    public static class AllRegistries
     {
-        Converters =
-        {
+        public static ComponentTypeRegistry ComponentRegistry { get; } = new();
+
+        public static EntityRegistry EntityRegistry { get; } = new();
+
+        public static SceneRegistry SceneRegistry { get; } = new();
+    }
+
+    public static JsonSerializerOptions SerializerOptions => new() {
+        Converters = {
             new JsonStringEnumConverter(),
             new JsonPointConverter(),
             new JsonVector2Converter(),
@@ -28,7 +29,7 @@ public static class RegistryManager
         WriteIndented = true,
         ReferenceHandler = ReferenceHandler.IgnoreCycles,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        TypeInfoResolver = TypeResolver,
+        TypeInfoResolver = ComponentTypeRegistry.ComponentTypeResolver,
     };
 
     public static void Initialize()
@@ -37,11 +38,11 @@ public static class RegistryManager
 
         if(assembly is not null)
         {
-            TypeResolver.GetAllDerivedTypesFromAssembly(assembly);
+            ComponentTypeRegistry.ComponentTypeResolver.GetAllDerivedTypesFromAssembly(assembly);
         }
 
-        Registries.Add(ComponentRegistry);
-        Registries.Add(EntityRegistry);
-        Registries.Add(SceneRegistry);
+        Registries.Add(AllRegistries.ComponentRegistry);
+        Registries.Add(AllRegistries.EntityRegistry);
+        Registries.Add(AllRegistries.SceneRegistry);
     }
 }

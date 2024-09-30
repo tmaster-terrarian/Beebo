@@ -13,6 +13,7 @@ using Jelly.Graphics;
 using Steamworks;
 using Beebo.Graphics;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace Beebo;
 
@@ -21,86 +22,192 @@ public static partial class Chat
     private static float chatAlpha;
 
     private static int currentSuggestion;
+    private static int suggestionScroll;
+    private static int suggestionHeight = 10;
+
+    private static readonly List<Keys> _arrowKeyInput = [];
+    private const double RepeatDelay = 0.45;
+    private const double RepeatRate = 0.01667;
+    private static readonly double[] _arrowKeyDelays = new double[4];
+    private static Keys[] _lastPressedKeys = [];
+
+    private static int selectionStart = 0;
+
+    private static Range SelectionRange => Math.Min(selectionStart, Cursor)..Math.Max(selectionStart, Cursor);
+    private static bool IsSelecting => selectionStart != Cursor;
 
     public static bool WindowOpen { get; private set; } = false;
     public static string TextInput { get; private set; } = "";
     public static int Cursor { get; private set; } = 0;
     public static int Scroll { get; private set; } = 0;
+    public static int WindowHeight { get; set; } = 6;
 
-    public static List<Tuple<string, Color>> History { get; } = [];
+    public static List<TextComponent> History { get; } = [];
+
+    private static int HistoryLineCount {
+        get {
+            int l = 0;
+            foreach(var txt in History)
+            {
+                l += (int)(txt.CalculateHeight() / txt.LineSpacing);
+            }
+            return l;
+        }
+    }
+
+    private static List<string> HistoryString {
+        get => [
+            ..from text in History
+            select text.Text
+        ];
+    }
+
+    private static int HistoryHeight {
+        get {
+            float l = 0;
+            foreach(var txt in History)
+            {
+                l += txt.CalculateHeight();
+            }
+            return (int)l;
+        }
+    }
 
     public static void CancelTypingAndClose()
     {
         WindowOpen = false;
         TextInput = "";
         Cursor = 0;
+        selectionStart = Cursor;
         Scroll = 0;
+        currentSuggestion = 0;
+        suggestionScroll = 0;
     }
 
-    public static void Update()
+    public static void Update(GameTime gameTime)
     {
         if(WindowOpen)
         {
+            UpdateArrowKeyInput(gameTime);
+
             List<char> input = [..Input.GetTextInput()];
             bool backspace = input.Remove('\x127');
 
-            int c = TextInput.Length;
+            int len = TextInput.Length;
 
-            TextInput =
-                (Cursor > 0 ? TextInput[..Cursor] : "") +
-                string.Join(null, input) +
-                (Cursor < c ? TextInput[Cursor..] : "");
+            if(!IsSelecting)
+            {
+                TextInput =
+                    (Cursor > 0 ? TextInput[..Cursor] : "") +
+                    string.Join(null, input) +
+                    (Cursor < len ? TextInput[Cursor..] : "");
+                Cursor += input.Count;
+            }
+            else if(input.Count > 0)
+            {
+                TextInput =
+                    TextInput[..SelectionRange.Start] +
+                    string.Join(null, input) +
+                    TextInput[SelectionRange.End..];
+                Cursor = MathHelper.Clamp(SelectionRange.Start.Value + 1, 0, TextInput.Length);
+                selectionStart = Cursor;
+            }
+
+            if(Input.GetPressed(MouseButtons.MiddleButton)) TextInput += "m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m";
 
             TextInput = TextInput[..MathHelper.Min(TextInput.Length, 10240)];
 
-            if(backspace && TextInput.Length > 0)
+            if(backspace && TextInput.Length > 0 && (Cursor > 0 || selectionStart > 0))
             {
-                TextInput = TextInput[..^1];
+                if(IsSelecting)
+                {
+                    TextInput = TextInput[..SelectionRange.Start] + TextInput[SelectionRange.End..];
+                    Cursor = SelectionRange.Start.Value;
+                    selectionStart = Cursor;
+                }
+                else
+                {
+                    TextInput = TextInput[..(Cursor - 1)] + TextInput[Cursor..];
+                    Cursor--;
+                    selectionStart = Cursor;
+                }
             }
 
-            Cursor += input.Count;
+            if(_arrowKeyInput.Contains(Keys.Left))
+            {
+                bool s = IsSelecting;
+                if(!(s && !Input.GetDown(Keys.LeftShift)))
+                    Cursor--;
 
-            if(Input.GetPressed(Keys.Left)) Cursor--;
-            if(Input.GetPressed(Keys.Right)) Cursor++;
+                if(s && !Input.GetDown(Keys.LeftShift))
+                    Cursor = MathHelper.Clamp(SelectionRange.Start.Value, 0, TextInput.Length);
+
+                if(!Input.GetDown(Keys.LeftShift))
+                    selectionStart = MathHelper.Clamp(Cursor, 0, TextInput.Length);
+            }
+            if(_arrowKeyInput.Contains(Keys.Right))
+            {
+                bool s = IsSelecting;
+                if(!(s && !Input.GetDown(Keys.LeftShift)))
+                    Cursor++;
+                if(s && !Input.GetDown(Keys.LeftShift))
+                    Cursor = MathHelper.Clamp(SelectionRange.End.Value, 0, TextInput.Length);
+
+                if(!Input.GetDown(Keys.LeftShift))
+                    selectionStart = MathHelper.Clamp(Cursor, 0, TextInput.Length);
+            }
 
             Cursor = MathHelper.Clamp(Cursor, 0, TextInput.Length);
+            selectionStart = MathHelper.Clamp(selectionStart, 0, TextInput.Length);
 
-            if(TextInput.StartsWith('/'))
+            if(TextInput.StartsWith('/') && Cursor > 0)
             {
-                if(Input.GetPressed(Keys.Up)) currentSuggestion++;
-                if(Input.GetPressed(Keys.Down)) currentSuggestion--;
-
-                var text = TextInput.Length > 1 ? TextInput[1..] : "";
-                if(TextInput.Length != c)
+                string text = TextInput.Length > 1 ? TextInput[1..] : "";
+                if(TextInput.Length != len)
                 {
                     currentSuggestion = 0;
                     Commands.GetSuggestions(text, EntityCommandSource.Default, Cursor - 1);
                 }
 
-                currentSuggestion = MathHelper.Clamp(currentSuggestion, 0, (Commands.Suggestions?.List.Count - 1) ?? 0);
-
                 if((Commands.Suggestions?.List.Count ?? 0) > 0)
                 {
-                    var completion = Commands.Suggestions.List[currentSuggestion].Text;
+                    if(_arrowKeyInput.Contains(Keys.Up)) currentSuggestion++;
+                    if(_arrowKeyInput.Contains(Keys.Down)) currentSuggestion--;
+
+                    currentSuggestion = MathHelper.Clamp(currentSuggestion, 0, Commands.Suggestions.List.Count - 1);
+
+                    if(currentSuggestion - suggestionScroll >= suggestionHeight) suggestionScroll++;
+                    if(currentSuggestion - suggestionScroll < 0) suggestionScroll--;
+
+                    string completion = Commands.Suggestions.List[currentSuggestion].Text;
 
                     if(Input.GetPressed(Keys.Tab) && !text[..(Cursor - 1)].EndsWith(completion))
                     {
-                        TextInput =
-                            (Cursor > 0 ? TextInput[..Cursor] : "") +
-                            completion[Commands.Suggestions.Range.End..] +
-                            (Cursor < c ? TextInput[Cursor..] : "");
+                        int min = MathHelper.Min(text.Length, Cursor + Commands.Suggestions.Range.Length);
+
+                        TextInput = "/" +
+                            (min > 0 ? text[..min] : "") +
+                            completion[Commands.Suggestions.Range.Length..] +
+                            (min < len ? text[min..] : "");
 
                         Cursor = MathHelper.Clamp(Cursor + completion.Length, 0, TextInput.Length);
+                        selectionStart = Cursor;
 
                         Commands.GetSuggestions(TextInput[1..], EntityCommandSource.Default, Cursor - 1);
                     }
                 }
             }
             else
+            {
                 currentSuggestion = 0;
+                suggestionScroll = 0;
+            }
+
+            if(TextInput.Length != len && !Input.GetDown(Keys.LeftShift))
+                selectionStart = Cursor;
 
             Scroll += Input.GetScrollDelta();
-            Scroll = MathHelper.Clamp(Scroll, 0, MathHelper.Max(0, History.Count - 5));
+            Scroll = MathHelper.Clamp(Scroll, 0, MathHelper.Max(0, HistoryLineCount - WindowHeight));
         }
 
         if(Input.GetPressed(Keys.Enter) && !BeeboImGuiRenderer.Enabled)
@@ -122,15 +229,17 @@ public static partial class Chat
             }
 
             Cursor = 0;
+            selectionStart = 0;
         }
 
-        if(!WindowOpen)
+        if(!WindowOpen && !BeeboImGuiRenderer.Enabled)
         {
             if(Input.GetPressed(Keys.OemQuestion))
             {
                 WindowOpen = true;
                 TextInput += "/";
                 Cursor++;
+                selectionStart++;
             }
         }
     }
@@ -140,8 +249,9 @@ public static partial class Chat
         if(WindowOpen || chatAlpha > 0)
         {
             const int spaceWidth = 6;
-            const int chatWidth = 256;
             const int lineHeight = 12;
+
+            int chatWidth = (Renderer.ScreenSize.X / 2) - 1;
             Point chatPos = new(2, Renderer.ScreenSize.Y - 16);
 
             float alpha = WindowOpen ? 1 : chatAlpha;
@@ -152,86 +262,167 @@ public static partial class Chat
                     Renderer.PixelTexture,
                     new Rectangle(
                         chatPos.X,
-                        chatPos.Y - lineHeight * MathHelper.Min(5, History.Count) - 1,
+                        chatPos.Y - MathHelper.Min(lineHeight * WindowHeight, HistoryHeight) - 1,
                         chatWidth,
-                        lineHeight * MathHelper.Min(5, History.Count)
+                        MathHelper.Min(lineHeight * WindowHeight, HistoryHeight)
                     ),
                     Color.Black * 0.5f * alpha
                 );
             }
 
+            var font = MasterRenderer.Fonts.RegularFont;
+
             if(WindowOpen)
             {
                 Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle(chatPos.X, chatPos.Y, chatWidth, lineHeight), Color.Black * 0.67f);
 
-                float x = chatWidth - 1 - MathHelper.Max(
-                    chatWidth - 1,
-                    Main.RegularFont.MeasureString(TextInput).X
+                float x = chatWidth - 2 - MathHelper.Max(
+                    chatWidth - 2,
+                    font.MeasureString(TextInput).X
                 );
 
                 Renderer.SpriteBatch.DrawStringSpacesFix(
-                    Main.RegularFont,
+                    font,
                     TextInput,
-                    new Vector2(x + chatPos.X + 1, chatPos.Y - 1),
+                    new Vector2(x + chatPos.X + 2, chatPos.Y - 1),
                     Color.White,
                     spaceWidth
                 );
 
-                Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle((int)x + chatPos.X + (int)Main.RegularFont.MeasureString(TextInput[..Cursor]).X, chatPos.Y + 1, 1, 10), Color.LightGray);
+                if(IsSelecting)
+                    Renderer.SpriteBatch.Draw(
+                        Renderer.PixelTexture,
+                        new Rectangle(
+                            (int)x + chatPos.X + (int)font.MeasureString(TextInput[..SelectionRange.Start]).X + 1,
+                            chatPos.Y + 1,
+                            (int)font.MeasureString(TextInput[SelectionRange]).X + 1,
+                            10
+                        ),
+                        Color.White * 0.25f
+                    );
+                else
+                    Renderer.SpriteBatch.Draw(Renderer.PixelTexture, new Rectangle((int)x + chatPos.X + (int)font.MeasureString(TextInput[..Cursor]).X + 1, chatPos.Y + 1, 1, 10), Color.LightGray);
+
+                if(HistoryHeight > WindowHeight * lineHeight)
+                {
+                    int barHeight = (int)((float)(WindowHeight * lineHeight) / HistoryHeight * (WindowHeight * lineHeight - 2));
+                    Renderer.SpriteBatch.Draw(
+                        Renderer.PixelTexture,
+                        new Rectangle(
+                            chatPos.X + chatWidth - 2,
+                            chatPos.Y - 2 - (Scroll * lineHeight / (HistoryHeight - barHeight)),
+                            1,
+                            barHeight
+                        ),
+                        Color.LightGray
+                    );
+                }
             }
 
-            for(int i = 0; i < 5; i++)
+            for(int i = 0; i < WindowHeight; i++)
             {
                 int index = History.Count - 1 - i - Scroll;
                 if(index < 0) continue;
 
-                Renderer.SpriteBatch.DrawStringSpacesFix(
-                    Main.RegularFont,
-                    History[index].Item1,
-                    new Vector2(chatPos.X + 1, chatPos.Y - (lineHeight + 2) - (i * lineHeight)),
-                    History[index].Item2 * alpha,
-                    spaceWidth
-                );
+                var txt = History[index];
+
+                txt.Draw(Renderer.SpriteBatch, new Vector2(chatPos.X + 2, chatPos.Y - 2 - lineHeight - i * lineHeight), txt.Color * alpha);
             }
 
-            if(WindowOpen && TextInput.StartsWith('/'))
+            if(WindowOpen && TextInput.StartsWith('/') && Cursor > 0)
             {
+                int offsetSuggestions = 0;
+
+                // full hint
+                var cmd = TextInput[1..];
+                var cmdSplit = cmd.Split(' ');
+                if(cmd.Length > 0)
+                {
+                    var node = Commands.Dispatcher.FindNode(cmd.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+                    var hintText = cmdSplit.Length == 1
+                        ? Commands.Dispatcher.GetSmartUsage(node ?? Commands.Dispatcher.GetRoot(), EntityCommandSource.Default)
+                        : (node is not null ? Commands.Dispatcher.GetSmartUsage(node, EntityCommandSource.Default) : null);
+
+                    if(hintText is not null && hintText.Count > 0)
+                    {
+                        float x = 0;
+                        List<string> l = [
+                            ..from entity in Commands.Suggestions?.List ?? []
+                            select entity.Text
+                        ];
+
+                        if(!hintText.Values.All(l.Contains))
+                        {
+                            offsetSuggestions = lineHeight;
+
+                            foreach(var token in hintText)
+                            {
+                                string str = token.Value;
+                                if(!token.Value.Contains(cmdSplit[0]) && cmdSplit.Length == 1) continue;
+
+                                Renderer.SpriteBatch.Draw(
+                                    Renderer.PixelTexture,
+                                    new Rectangle(
+                                        (int)x + chatPos.X + 6,
+                                        chatPos.Y - lineHeight,
+                                        (int)font.MeasureString(str).X + 1,
+                                        lineHeight
+                                    ),
+                                    Color.Black * 0.75f
+                                );
+
+                                Renderer.SpriteBatch.DrawStringSpacesFix(
+                                    font,
+                                    str,
+                                    new Vector2(x + chatPos.X + 7, chatPos.Y - 1 - lineHeight),
+                                    Color.DarkGray,
+                                    spaceWidth
+                                );
+
+                                x += font.MeasureString(str).X + spaceWidth;
+                            }
+                        }
+                    }
+                }
+
                 if((Commands.Suggestions?.List.Count ?? 0) > 0)
                 {
-                    Renderer.SpriteBatch.Draw(
-                        Renderer.PixelTexture,
-                        new Rectangle(
-                            chatPos.X + 5,
-                            chatPos.Y - lineHeight * Commands.Suggestions.List.Count,
-                            chatWidth - 5,
-                            lineHeight * Commands.Suggestions.List.Count
-                        ),
-                        Color.Black * 0.75f
-                    );
-
-                    float x = chatWidth - 1 - MathHelper.Max(
-                        chatWidth - 1,
-                        Main.RegularFont.MeasureString(TextInput).X
-                    );
-
+                    // inline hint
                     var completion = Commands.Suggestions?.List[currentSuggestion].Text;
                     if(completion is not null)
                     {
+                        float x = chatWidth - 2 - MathHelper.Max(chatWidth - 2, font.MeasureString(TextInput).X);
+
                         Renderer.SpriteBatch.DrawStringSpacesFix(
-                            Main.RegularFont,
-                            completion[Commands.Suggestions.Range.End..],
-                            new Vector2(x + chatPos.X + 1 + Main.RegularFont.MeasureString(TextInput).X, chatPos.Y - 1),
+                            font,
+                            completion[(Commands.Suggestions.Range.End - Commands.Suggestions.Range.Start)..],
+                            new Vector2(x + chatPos.X + 2 + font.MeasureString(TextInput).X, chatPos.Y - 1),
                             Color.DarkGray,
                             spaceWidth
                         );
                     }
 
+                    // suggestion list
+                    Renderer.SpriteBatch.Draw(
+                        Renderer.PixelTexture,
+                        new Rectangle(
+                            chatPos.X + 6,
+                            chatPos.Y - offsetSuggestions - MathHelper.Min(suggestionHeight, Commands.Suggestions.List.Count) * lineHeight,
+                            chatWidth - 6,
+                            MathHelper.Min(suggestionHeight, Commands.Suggestions.List.Count) * lineHeight
+                        ),
+                        Color.Black * 0.75f
+                    );
+
                     for(int i = 0; i < Commands.Suggestions.List.Count; i++)
                     {
+                        if(i < suggestionScroll) continue;
+                        if(i - suggestionScroll >= suggestionHeight) break;
+
                         Renderer.SpriteBatch.DrawStringSpacesFix(
-                            Main.RegularFont,
+                            font,
                             Commands.Suggestions.List[i].Text,
-                            new Vector2(chatPos.X + 6, chatPos.Y - (lineHeight + 1) - (i * lineHeight)),
+                            new Vector2(chatPos.X + 7, chatPos.Y - offsetSuggestions - lineHeight - 1 - ((i - suggestionScroll) * lineHeight)),
                             i == currentSuggestion ? Color.Yellow : Color.White,
                             spaceWidth
                         );
@@ -239,9 +430,9 @@ public static partial class Chat
                         // if(i == currentSuggestion)
                         // {
                         //     Renderer.SpriteBatch.DrawStringSpacesFix(
-                        //         Main.RegularFont,
+                        //         font,
                         //         Commands.Suggestions.List[i].Text[..Commands.Suggestions.Range.End],
-                        //         new Vector2(chatPos.X + 6, chatPos.Y - (lineHeight + 1) - (i * lineHeight)),
+                        //         new Vector2(chatPos.X + 7, chatPos.Y - lineHeight - 1 - (i * lineHeight)),
                         //         Color.Yellow,
                         //         spaceWidth
                         //     );
@@ -252,6 +443,38 @@ public static partial class Chat
         }
     }
 
+    private static void UpdateArrowKeyInput(GameTime gameTime)
+    {
+        var keysPressed = Input.KeyboardState.GetPressedKeys();
+
+        HashSet<Keys> _lastKeys = new(_lastPressedKeys);
+        _arrowKeyInput.Clear();
+        var currSeconds = gameTime.TotalGameTime.TotalSeconds;
+
+        foreach(var key in keysPressed)
+        {
+            int keyNum = -1;
+            if(key == Keys.Left)
+                keyNum = 0;
+            if(key == Keys.Right)
+                keyNum = 1;
+            if(key == Keys.Up)
+                keyNum = 2;
+            if(key == Keys.Down)
+                keyNum = 3;
+
+            if(keyNum != -1)
+            {
+                if ((currSeconds > _arrowKeyDelays[keyNum]) || (!_lastKeys.Contains(key)))
+                {
+                    _arrowKeyInput.Add(key);
+                    _arrowKeyDelays[keyNum] = currSeconds + (_lastKeys.Contains(key) ? RepeatRate : RepeatDelay);
+                }
+            }
+        }
+        _lastPressedKeys = keysPressed;
+    }
+
     public static void WriteChatMessage(string message, CSteamID origin, bool system = false, bool noLog = false)
     {
         if(system)
@@ -259,7 +482,20 @@ public static partial class Chat
             if(!noLog)
                 Main.Logger.LogInfo("<Server>: " + message);
 
-            History.Add(new(message, Color.Yellow));
+            var txt = TextComponent.WordWrap(message, (int)(((Renderer.ScreenSize.X / 2) - 1) / MasterRenderer.Fonts.RegularFont.MeasureString("0").X));
+
+            foreach(var line in txt.Split('\n'))
+            {
+                History.Add(new TextComponent {
+                    Text = $"{line}",
+                    Color = Color.Yellow,
+                    Font = MasterRenderer.Fonts.RegularFont,
+                    SpaceWidth = 6,
+                    TextAlignment = TextAlignmentPresets.TopLeft,
+                    RenderNewlines = false,
+                    LineSpacing = 12,
+                });
+            }
         }
         else
         {
@@ -272,7 +508,20 @@ public static partial class Chat
             if(!noLog)
                 Main.Logger.LogInfo(name + ": " + message);
 
-            History.Add(new($"{name}: {message}", Color.White));
+            var txt = TextComponent.WordWrap(message, (int)(((Renderer.ScreenSize.X / 2) - 1) / MasterRenderer.Fonts.RegularFont.MeasureString("0").X));
+
+            foreach(var line in $"{name}: {txt}".Split('\n'))
+            {
+                History.Add(new TextComponent {
+                    Text = $"{line}",
+                    Color = Color.White,
+                    Font = MasterRenderer.Fonts.RegularFont,
+                    SpaceWidth = 6,
+                    TextAlignment = TextAlignmentPresets.TopLeft,
+                    RenderNewlines = false,
+                    LineSpacing = 12,
+                });
+            }
         }
 
         if(Main.GlobalCoroutineRunner.IsRunning(nameof(ChatDisappearDelay)))

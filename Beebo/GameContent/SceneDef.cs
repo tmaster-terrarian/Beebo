@@ -6,7 +6,7 @@ using Jelly.Utilities;
 
 namespace Beebo.GameContent;
 
-public class SceneDef : ContentDef
+public class SceneDef : RegistryEntry
 {
     public IList<JsonEntity> Entities { get; set; } = [];
 
