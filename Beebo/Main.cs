@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
@@ -7,6 +6,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
+using Beebo.Commands;
 using Beebo.GameContent;
 using Beebo.Graphics;
 using Beebo.Net;
@@ -109,7 +109,7 @@ public class Main : Jelly.GameServer
 
         JellyBackend.Initialize(new BeeboContentProvider());
 
-        Commands.Initialize();
+        CommandManager.Initialize();
 
         LocalizationManager.CurrentLanguage = "en-us";
 

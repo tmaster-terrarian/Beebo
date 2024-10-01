@@ -1,19 +1,19 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 
+using Beebo.Commands;
+using Beebo.Graphics;
 using Beebo.Net;
 
 using Jelly;
 using Jelly.Graphics;
 
 using Steamworks;
-using Beebo.Graphics;
-using System.Text.RegularExpressions;
-using System.Linq;
 
 namespace Beebo;
 
@@ -102,6 +102,7 @@ public static partial class Chat
                     string.Join(null, input) +
                     (Cursor < len ? TextInput[Cursor..] : "");
                 Cursor += input.Count;
+                selectionStart = Cursor;
             }
             else if(input.Count > 0)
             {
@@ -112,8 +113,6 @@ public static partial class Chat
                 Cursor = MathHelper.Clamp(SelectionRange.Start.Value + 1, 0, TextInput.Length);
                 selectionStart = Cursor;
             }
-
-            if(Input.GetPressed(MouseButtons.MiddleButton)) TextInput += "m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m m";
 
             TextInput = TextInput[..MathHelper.Min(TextInput.Length, 10240)];
 
@@ -166,34 +165,36 @@ public static partial class Chat
                 if(TextInput.Length != len)
                 {
                     currentSuggestion = 0;
-                    Commands.GetSuggestions(text, EntityCommandSource.Default, Cursor - 1);
+                    CommandManager.GetSuggestions(text, EntityCommandSource.Default, Cursor - 1);
                 }
 
-                if((Commands.Suggestions?.List.Count ?? 0) > 0)
+                if((CommandManager.Suggestions?.List.Count ?? 0) > 0)
                 {
                     if(_arrowKeyInput.Contains(Keys.Up)) currentSuggestion++;
                     if(_arrowKeyInput.Contains(Keys.Down)) currentSuggestion--;
 
-                    currentSuggestion = MathHelper.Clamp(currentSuggestion, 0, Commands.Suggestions.List.Count - 1);
+                    currentSuggestion = MathHelper.Clamp(currentSuggestion, 0, CommandManager.Suggestions.List.Count - 1);
 
                     if(currentSuggestion - suggestionScroll >= suggestionHeight) suggestionScroll++;
                     if(currentSuggestion - suggestionScroll < 0) suggestionScroll--;
 
-                    string completion = Commands.Suggestions.List[currentSuggestion].Text;
+                    string completion = CommandManager.Suggestions.List[currentSuggestion].Text;
 
                     if(Input.GetPressed(Keys.Tab) && !text[..(Cursor - 1)].EndsWith(completion))
                     {
-                        int min = MathHelper.Min(text.Length, Cursor + Commands.Suggestions.Range.Length);
+                        int min = MathHelper.Min(text.Length, Cursor + CommandManager.Suggestions.Range.Length);
 
                         TextInput = "/" +
                             (min > 0 ? text[..min] : "") +
-                            completion[Commands.Suggestions.Range.Length..] +
+                            completion[MathHelper.Min(completion.Length - 1, CommandManager.Suggestions.Range.Length)..] +
                             (min < len ? text[min..] : "");
 
                         Cursor = MathHelper.Clamp(Cursor + completion.Length, 0, TextInput.Length);
                         selectionStart = Cursor;
 
-                        Commands.GetSuggestions(TextInput[1..], EntityCommandSource.Default, Cursor - 1);
+                        currentSuggestion = 0;
+
+                        CommandManager.GetSuggestions(TextInput[1..], EntityCommandSource.Default, Cursor - 1);
                     }
                 }
             }
@@ -221,7 +222,7 @@ public static partial class Chat
 
                 if(TextInput.StartsWith('/'))
                 {
-                    Commands.ExecuteCommand(TextInput[1..], EntityCommandSource.Default);
+                    CommandManager.ExecuteCommand(TextInput[1..], EntityCommandSource.Default);
                 }
 
                 TextInput = "";
@@ -338,16 +339,14 @@ public static partial class Chat
                 var cmdSplit = cmd.Split(' ');
                 if(cmd.Length > 0)
                 {
-                    var node = Commands.Dispatcher.FindNode(cmd.Split(' ', StringSplitOptions.RemoveEmptyEntries));
-                    var hintText = cmdSplit.Length == 1
-                        ? Commands.Dispatcher.GetSmartUsage(node ?? Commands.Dispatcher.GetRoot(), EntityCommandSource.Default)
-                        : (node is not null ? Commands.Dispatcher.GetSmartUsage(node, EntityCommandSource.Default) : null);
+                    var node = CommandManager.Dispatcher.FindNode(cmd.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+                    var hintText = node is not null ? CommandManager.Dispatcher.GetSmartUsage(node, EntityCommandSource.Default) : null;
 
                     if(hintText is not null && hintText.Count > 0)
                     {
                         float x = 0;
                         List<string> l = [
-                            ..from entity in Commands.Suggestions?.List ?? []
+                            ..from entity in CommandManager.Suggestions?.List ?? []
                             select entity.Text
                         ];
 
@@ -385,17 +384,22 @@ public static partial class Chat
                     }
                 }
 
-                if((Commands.Suggestions?.List.Count ?? 0) > 0)
+                if((CommandManager.Suggestions?.List.Count ?? 0) > 0)
                 {
                     // inline hint
-                    var completion = Commands.Suggestions?.List[currentSuggestion].Text;
-                    if(completion is not null)
+                    var completion = CommandManager.Suggestions.List[currentSuggestion].Text;
+
+                    if(completion is not null && completion.Length > 0 && !TextInput[1..Cursor].EndsWith(completion))
                     {
                         float x = chatWidth - 2 - MathHelper.Max(chatWidth - 2, font.MeasureString(TextInput).X);
 
+                        string v = completion;
+                        if(CommandManager.Suggestions.Range.Length < completion.Length)
+                            v = completion[MathHelper.Min(completion.Length - 1, CommandManager.Suggestions.Range.End - CommandManager.Suggestions.Range.Start)..];
+
                         Renderer.SpriteBatch.DrawStringSpacesFix(
                             font,
-                            completion[(Commands.Suggestions.Range.End - Commands.Suggestions.Range.Start)..],
+                            v,
                             new Vector2(x + chatPos.X + 2 + font.MeasureString(TextInput).X, chatPos.Y - 1),
                             Color.DarkGray,
                             spaceWidth
@@ -407,21 +411,21 @@ public static partial class Chat
                         Renderer.PixelTexture,
                         new Rectangle(
                             chatPos.X + 6,
-                            chatPos.Y - offsetSuggestions - MathHelper.Min(suggestionHeight, Commands.Suggestions.List.Count) * lineHeight,
+                            chatPos.Y - offsetSuggestions - MathHelper.Min(suggestionHeight, CommandManager.Suggestions.List.Count) * lineHeight,
                             chatWidth - 6,
-                            MathHelper.Min(suggestionHeight, Commands.Suggestions.List.Count) * lineHeight
+                            MathHelper.Min(suggestionHeight, CommandManager.Suggestions.List.Count) * lineHeight
                         ),
                         Color.Black * 0.75f
                     );
 
-                    for(int i = 0; i < Commands.Suggestions.List.Count; i++)
+                    for(int i = 0; i < CommandManager.Suggestions.List.Count; i++)
                     {
                         if(i < suggestionScroll) continue;
                         if(i - suggestionScroll >= suggestionHeight) break;
 
                         Renderer.SpriteBatch.DrawStringSpacesFix(
                             font,
-                            Commands.Suggestions.List[i].Text,
+                            CommandManager.Suggestions.List[i].Text,
                             new Vector2(chatPos.X + 7, chatPos.Y - offsetSuggestions - lineHeight - 1 - ((i - suggestionScroll) * lineHeight)),
                             i == currentSuggestion ? Color.Yellow : Color.White,
                             spaceWidth

@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
-
+using System.Threading.Tasks;
+using Beebo.GameContent;
 using Brigadier.NET;
 using Brigadier.NET.Builder;
 using Brigadier.NET.Suggestion;
 
 using Jelly;
+using Jelly.GameContent;
 
-namespace Beebo;
+namespace Beebo.Commands;
 
-public static class Commands
+public static class CommandManager
 {
     private static readonly CommandDispatcher<EntityCommandSource> dispatcher = new();
 
@@ -51,7 +53,7 @@ public static class Commands
                     a.Argument("command", Arguments.Word())
                         .Executes(c => {
                             var name = Arguments.GetString(c, "command");
-                            Log($"Name: {name}\n\nUsage:\n  {name} " + string.Join($"\n  {name} ", dispatcher.GetSmartUsage(dispatcher.GetRoot().GetChild(name), c.Source).Values));
+                            Log($"Usage:\n  {name} " + string.Join($"\n  {name} ", dispatcher.GetSmartUsage(dispatcher.GetRoot().GetChild(name), c.Source).Values));
                             return 1;
                         })
                 )
@@ -67,27 +69,29 @@ public static class Commands
                 })
         );
 
-        static int AAA(Brigadier.NET.Context.CommandContext<EntityCommandSource> c)
-        {
-            return 1;
-        }
-
         dispatcher.Register(l =>
-            l.Literal("a")
-                .Then(a => a.Literal("1").Executes(AAA))
-                .Then(a => a.Literal("2").Executes(AAA))
-                .Then(a => a.Literal("3").Executes(AAA))
-                .Then(a => a.Literal("4").Executes(AAA))
-                .Then(a => a.Literal("5").Executes(AAA))
-                .Then(a => a.Literal("6").Executes(AAA))
-                .Then(a => a.Literal("7").Executes(AAA))
-                .Then(a => a.Literal("8").Executes(AAA))
-                .Then(a => a.Literal("9").Executes(AAA))
-                .Then(a => a.Literal("10").Executes(AAA))
-                .Then(a => a.Literal("11").Executes(AAA))
-                .Then(a => a.Literal("12").Executes(AAA))
-                .Then(a => a.Literal("13").Executes(AAA))
-                .Then(a => a.Literal("14").Executes(AAA))
+            l.Literal("load")
+                .Then(a =>
+                    a.Argument("sceneId", Arguments.String())
+                    // .Suggests((c, builder) => {
+                    //     foreach(var def in Registries.Get<SceneRegistry>())
+                    //     {
+                    //         builder.Suggest(def.Key);
+                    //     }
+                    //     return builder.BuildFuture();
+                    // })
+                    .Executes(c => {
+                        var sceneName = c.GetArgument<string>("sceneId");
+                        var scene = Registries.Get<SceneRegistry>().GetDef(sceneName)?.Build();
+
+                        if(scene is not null)
+                            SceneManager.ChangeSceneImmediately(scene);
+                        else
+                            throw new NullReferenceException("The specified scene does not exist or could not be found.");
+
+                        return 1;
+                    })
+                )
         );
     }
 
@@ -109,6 +113,8 @@ public static class Commands
         try
         {
             dispatcher.Execute(parseResults);
+
+            Suggestions = null;
         }
         catch(Exception e)
         {
