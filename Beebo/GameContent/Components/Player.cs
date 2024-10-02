@@ -25,13 +25,13 @@ public class Player : Actor
 
     private PlayerState _state = PlayerState.Normal; // please do NOT touch this thx
     private bool _stateJustChanged;
-    private float stateTimer;
+    private int stateTimer;
 
     private readonly float gravity = 0.2f;
     private readonly float baseMoveSpeed = 3f;
-    private readonly float baseJumpSpeed = -4.5f;
-    private readonly float baseGroundAcceleration = 0.15f;
-    private readonly float baseGroundFriction = 0.1f;
+    private readonly float baseJumpSpeed = -3.7f;
+    private readonly float baseGroundAcceleration = 0.1f;
+    private readonly float baseGroundFriction = 0.15f;
     private readonly float baseAirAcceleration = 0.07f;
     private readonly float baseAirFriction = 0.05f;
 
@@ -118,6 +118,11 @@ public class Player : Actor
         Entity.Depth = 50;
     }
 
+    public override void EntityAdded(Scene scene)
+    {
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(scene.CollisionSystem, RegistryManager.SerializerOptions));
+    }
+
     void AddTexture(Texture2D texture, int frameCount = 1)
     {
         textures.Add(texture);
@@ -159,6 +164,30 @@ public class Player : Actor
             if(!(InputMapping.Down.IsDown && CheckCollidingJumpthrough(BottomEdge.Shift(new(0, 1)))))
                 velocity.Y = 0;
         });
+
+        if(Left < 0)
+        {
+            Entity.X = 0;
+            velocity.X = 0;
+        }
+
+        if(Right > Scene.Width)
+        {
+            Entity.X = Scene.Width - Width;
+            velocity.X = 0;
+        }
+
+        if(Top < 0)
+        {
+            Entity.Y = 0;
+            velocity.Y = 0;
+        }
+
+        if(Bottom > Scene.Height)
+        {
+            Entity.Y = Scene.Height - Height;
+            velocity.Y = 0;
+        }
 
         if(fxTrail)
         {

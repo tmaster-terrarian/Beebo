@@ -249,9 +249,7 @@ public class Main : Jelly.GameServer
 
     private void SceneChanged(Scene oldScene, Scene newScene)
     {
-        Entity entity = new();
-        EntityRegistry.SimplePlayer.OnCreate(entity);
-        newScene.Entities.Add(entity);
+        
     }
 
     private void Game_Exiting(object sender, EventArgs e)
@@ -260,24 +258,6 @@ public class Main : Jelly.GameServer
         {
             SteamManager.Cleanup();
         }
-    }
-
-    private static void OnPlayersReady(ReadinessReason readinessReason)
-    {
-        switch(readinessReason)
-        {
-            case ReadinessReason.WaitForSceneLoad:
-            {
-                Logger.LogInfo("All players have finished loading, beginning scene");
-                    Scene?.Begin();
-                break;
-            }
-        }
-    }
-
-    private static void OnSceneTransition(Scene from, Scene to)
-    {
-        to.TimeScale = 1f;
     }
 
     public static void ChangeScene(string name)

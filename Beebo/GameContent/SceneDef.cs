@@ -2,13 +2,17 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Jelly;
 using Jelly.GameContent;
+using Jelly.Graphics;
 using Jelly.Utilities;
+using Microsoft.Xna.Framework;
 
 namespace Beebo.GameContent;
 
 public class SceneDef : RegistryEntry
 {
     public IList<JsonEntity> Entities { get; set; } = [];
+
+    public JsonCollisions Collisions { get; set; }
 
     public int? Width { get; set; }
     public int? Height { get; set; }
@@ -17,9 +21,26 @@ public class SceneDef : RegistryEntry
     {
         var scene = new Scene {
             Name = Name,
-            Width = Width ?? CollisionSystem.TileSize,
-            Height = Height ?? CollisionSystem.TileSize
+            Width = Width ?? Renderer.ScreenSize.X,
+            Height = Height ?? Renderer.ScreenSize.Y + 8,
         };
+
+        if(Collisions is not null)
+        {
+            if(Collisions.Tiles is not null)
+            {
+                scene.CollisionSystem.JsonTiles = Collisions.Tiles;
+            }
+
+            scene.CollisionSystem.Visible = Collisions.Visible;
+
+            scene.CollisionSystem.JumpThroughs.Clear();
+            scene.CollisionSystem.JumpThroughs.AddRange(Collisions.JumpThroughs ?? []);
+            scene.CollisionSystem.JumpThroughSlopes.Clear();
+            scene.CollisionSystem.JumpThroughSlopes.AddRange(Collisions.JumpThroughSlopes ?? []);
+            scene.CollisionSystem.Slopes.Clear();
+            scene.CollisionSystem.Slopes.AddRange(Collisions.Slopes ?? []);
+        }
 
         foreach(var e in Entities ?? [])
         {

@@ -1,6 +1,7 @@
 using Jelly;
 using Jelly.Components;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 namespace Beebo.GameContent.Components;
@@ -11,12 +12,22 @@ public class SimplePlayerBehavior : Actor
 
     public float MaxSpeed { get; set; } = 4;
 
+    private SpriteComponent Sprite => Entity.GetComponent<SpriteComponent>();
+
     public override void EntityAwake()
     {
         Entity.X = 100;
         Entity.Y = 100;
 
-        Entity.GetComponent<SpriteComponent>().TexturePath = "Images/Entities/SimplePlayer/idle.png";
+        Width = 8;
+        Height = 14;
+
+        Sprite.TexturePath = "Images/Entities/SimplePlayer/idle";
+
+        var tex = Main.LoadContent<Texture2D>(Sprite.TexturePath);
+        Sprite.Pivot = new(tex.Width / 2, tex.Height);
+
+        bboxOffset = new Point(-Width / 2, -Height);
     }
 
     public override void Update()
