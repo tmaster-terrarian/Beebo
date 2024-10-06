@@ -31,11 +31,11 @@
     <!-- <PackageReference Include="Aether.Physics2D.MG" Version="2.1.0" /> -->
     <PackageReference Include="ImGui.NET" Version="1.90.1.1" />
     <PackageReference Include="Brigadier.NET" Version="1.2.13" />
+    <PackageReference Include="Jelly" Version="0.1.0-beta.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../Beebo.Server/Beebo.Server.csproj" />
-    <ProjectReference Include="../Jelly/Jelly.csproj" />
   </ItemGroup>
 
   <ItemGroup>
