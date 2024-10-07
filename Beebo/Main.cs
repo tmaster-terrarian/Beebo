@@ -21,7 +21,7 @@ using Steamworks;
 
 namespace Beebo;
 
-public class Main : Jelly.GameServer
+public class Main : Game
 {
     internal static Main Instance { get; private set; } = null;
 
@@ -39,7 +39,7 @@ public class Main : Jelly.GameServer
     public static float FreezeTimer { get; set; }
     public static CoroutineRunner GlobalCoroutineRunner { get; } = new();
 
-    public static bool PlayerControlsDisabled => Instance.Server || Chat.WindowOpen || Input.InputDisabled || BeeboImGuiRenderer.Enabled || FreezeTimer > 0;
+    public static bool PlayerControlsDisabled => Chat.WindowOpen || Input.InputDisabled || BeeboImGuiRenderer.Enabled || FreezeTimer > 0;
 
     public static int NetID => P2PManager.GetMemberIndex(P2PManager.MyID);
     public static bool IsHost => P2PManager.GetLobbyOwner() == P2PManager.MyID;
@@ -93,13 +93,13 @@ public class Main : Jelly.GameServer
     {
         Logger.LogInfo("Entering main loop");
 
-        if(!Server) Renderer.Initialize(_graphics, GraphicsDevice, Window);
+        Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
         camera = new Camera();
 
         if(Program.UseSteamworks)
         {
-            if(!steamFailed && SteamManager.Init(Server))
+            if(!steamFailed && SteamManager.Init(false))
             {
                 Exiting += Game_Exiting;
             }
@@ -117,18 +117,11 @@ public class Main : Jelly.GameServer
 
         SceneManager.ActiveSceneChanged += SceneChanged;
 
-        if(!Server) base.Initialize();
-        else LoadContent();
+        base.Initialize();
     }
 
     protected override void LoadContent()
     {
-        // server + client resources
-
-        if(Server) return;
-
-        // client resources
-
         Renderer.LoadContent(Content);
 
         MasterRenderer.LoadContent(Content);
@@ -152,16 +145,13 @@ public class Main : Jelly.GameServer
     {
         JellyBackend.PreUpdate(gameTime);
 
-        if(!Server)
-        {
-            Input.InputDisabled = !IsActive;
+        Input.InputDisabled = !IsActive;
 
-            Input.RefreshKeyboardState();
-            Input.RefreshMouseState();
-            Input.RefreshGamePadState();
+        Input.RefreshKeyboardState();
+        Input.RefreshMouseState();
+        Input.RefreshGamePadState();
 
-            Input.UpdateTypingInput(gameTime);
-        }
+        Input.UpdateTypingInput(gameTime);
 
         if(Input.GetPressed(Buttons.Back) || Input.GetPressed(Keys.Escape))
         {
@@ -319,9 +309,6 @@ public class Main : Jelly.GameServer
 
     private static Texture2D GetMediumSteamAvatar(GraphicsDevice device, CSteamID cSteamID)
     {
-        if(Instance.Server)
-            return null;
-
         if(AlreadyLoadedAvatars.TryGetValue(cSteamID, out Texture2D value))
             return value ?? DefaultSteamProfile;
 

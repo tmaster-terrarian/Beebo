@@ -16,8 +16,6 @@ public class BeeboContentProvider : ContentProvider
 
     public override Texture2D? GetTexture(string pathName)
     {
-        if(Main.Instance.Server) return null;
-
         if(pathsThatDontWork.Contains(pathName)) return null;
 
         if(loadedTextures.TryGetValue(pathName, out Texture2D value)) return value;
