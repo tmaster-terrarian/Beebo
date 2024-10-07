@@ -93,6 +93,12 @@ public class Main : Game
     {
         Logger.LogInfo("Entering main loop");
 
+        Renderer.ScreenSize = new Point(320, 180);
+        Renderer.PixelScale = GraphicsDevice.PresentationParameters.BackBufferWidth / Renderer.ScreenSize.X;
+
+        _graphics.PreferredBackBufferWidth = Renderer.ScreenSize.X * Renderer.PixelScale;
+        _graphics.PreferredBackBufferHeight = Renderer.ScreenSize.Y * Renderer.PixelScale;
+
         Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
         camera = new Camera();
