@@ -22,7 +22,7 @@ public class SceneDef : RegistryEntry
         var scene = new Scene {
             Name = Name,
             Width = Width ?? Renderer.ScreenSize.X,
-            Height = Height ?? Renderer.ScreenSize.Y + 8,
+            Height = Height ?? (Renderer.ScreenSize.Y + 12),
         };
 
         if(Collisions is not null)

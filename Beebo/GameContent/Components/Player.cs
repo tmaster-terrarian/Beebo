@@ -714,7 +714,7 @@ public class Player : Actor
                     jumpBuffer = 5;
                 }
                 if (running && !CheckColliding(Hitbox.Shift(inputDir, 0), true))
-                    frame += Math.Abs(velocity.X) / (10f / frameCounts[(int)textureIndex] * 6);
+                    frame += Math.Abs(velocity.X) / (8f / frameCounts[(int)textureIndex] * 6);
                 else if (duck > 0)
                     frame += Math.Abs(velocity.X / 4);
                 landTimer = Util.Approach(landTimer, 0, 1);
@@ -950,21 +950,16 @@ public class Player : Actor
                     break;
                 }
                 case TextureIndex.Crawl: {
-                    x = -4;
                     switch((int)frame % 8)
                     {
-                        case 0:
-                        case 6:
-                        case 7:
-                            y = -5;
-                            break;
-                        case 1:
-                        case 2:
-                        case 3:
-                        case 4:
-                        case 5:
-                            y = -4;
-                            break;
+                        case 0: x = -2; y = -2; break;
+                        case 1: x = -4; y = -2; break;
+                        case 2: x = -5; y = -2; break;
+                        case 3: x = -4; y = -2; break;
+                        case 4: x = -3; y = -3; break;
+                        case 5: x = -1; y = -3; break;
+                        case 6: x =  1; y = -2; break;
+                        case 7: x =  0; y = -2; break;
                     }
                     break;
                 }
@@ -986,7 +981,7 @@ public class Player : Actor
                     }
                     if(duck > 0)
                     {
-                        x = -3 + (1/3 * (int)duck);
+                        x = -3 + (int)(1/3f * duck);
                         y = -5 + (int)duck;
                     }
                     else
