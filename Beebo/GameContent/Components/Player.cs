@@ -83,7 +83,7 @@ public class Player : Actor
     private float hp = 100;
 
     private Rectangle MaskNormal = new(-4, -14, 8, 14);
-    private Rectangle MaskDuck = new(-4, -6, 8, 6);
+    private Rectangle MaskDuck = new(-4, -8, 8, 8);
     private Rectangle MaskLedge = new(-8, 0, 8, 14);
     private Point PivotNormal = new(12, 24);
     private Point PivotDuck = new(12, 24);
@@ -868,9 +868,12 @@ public class Player : Actor
         }
 
         int facing = FaceTowardsMouse ? Math.Sign(Main.Camera.MousePositionInWorld.X - Center.X) : Facing;
+        if(facing == 0) facing = Facing;
+
         SpriteEffects spriteEffects = facing < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
-        while(frame > frameCounts[(int)textureIndex]) frame -= frameCounts[(int)textureIndex];
+        while(frame > frameCounts[(int)textureIndex])
+            frame -= frameCounts[(int)textureIndex];
 
         {
             var texture = textures[(int)textureIndex];
@@ -979,7 +982,7 @@ public class Player : Actor
                         x = -4;
                         y = -5;
                     }
-                    if(duck > 0)
+                    else if(duck > 0)
                     {
                         x = -3 + (int)(1/3f * duck);
                         y = -5 + (int)duck;
