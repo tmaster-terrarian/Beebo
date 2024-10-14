@@ -84,8 +84,6 @@ public class Player : Actor
     private int landTimer;
     private int wallslideTimer;
 
-    private float hp = 100;
-
     private Rectangle MaskNormal = new(-4, -14, 8, 14);
     private Rectangle MaskDuck = new(-4, -8, 8, 8);
     private Rectangle MaskLedge = new(-8, 0, 8, 14);
@@ -149,6 +147,8 @@ public class Player : Actor
         }
     }
 
+    bool flipGun = false;
+
     public bool FaceTowardsMouse { get; private set; } = true;
 
     public int VisualFacing {
@@ -163,6 +163,7 @@ public class Player : Actor
 
     public bool UseGamePad { get; set; }
 
+    public int Hp { get; set; } = 100;
     public bool Dead { get; private set; }
 
     public override void OnCreated()
@@ -827,7 +828,9 @@ public class Player : Actor
                 break;
             }
             case PlayerState.Wallslide: {
+                flipGun = true;
                 canWalljump = true;
+
                 if (velocity.Y < 0)
                     velocity.Y = MathUtil.Approach(velocity.Y, 20, 0.5f);
                 else
@@ -882,28 +885,40 @@ public class Player : Actor
     private void CheckLedgeGrab()
     {
         var _w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift(inputDir, 0));
-        if (canLedgeGrab && ledgegrabTimer == 0 && _w is not null && !CheckColliding(Hitbox))
+        if(_w is not null)
         {
-            if(!CheckColliding(new((inputDir == 1) ? _w.Left + 1 : _w.Right - 1, _w.Top - 1, 1, 1), true)
-            && !CheckColliding(new((inputDir == 1) ? _w.Left - 2 : _w.Right + 2, _w.Top + 18, 1, 1), true))
+            if (canLedgeGrab && ledgegrabTimer == 0 && !CheckColliding(Hitbox))
             {
-                if (Math.Sign(Top - _w.Top) <= 0 && !CheckColliding(new(Left, _w.Top - 1, Width, Height), true) && !CheckColliding(Hitbox.Shift(0, 2), true))
+                if(!CheckColliding(new((inputDir == 1) ? _w.Left + 1 : _w.Right - 1, _w.Top - 1, 1, 1), true)
+                && !CheckColliding(new((inputDir == 1) ? _w.Left - 2 : _w.Right + 2, _w.Top + 18, 1, 1), true))
                 {
-                    wallslideTimer = 0;
-                    State = PlayerState.LedgeGrab;
+                    if (Math.Sign(Top - _w.Top) <= 0 && !CheckColliding(new(Left, _w.Top - 1, Width, Height), true) && !CheckColliding(Hitbox.Shift(0, 2), true))
+                    {
+                        wallslideTimer = 0;
+                        State = PlayerState.LedgeGrab;
 
-                    SetHitbox(MaskLedge, PivotLedge);
-                    textureIndex = TextureIndex.LedgeGrab;
+                        SetHitbox(MaskLedge, PivotLedge);
+                        textureIndex = TextureIndex.LedgeGrab;
 
-                    Entity.Y = _w.Top - bboxOffset.Y;
-                    Entity.X = ((inputDir == 1) ? _w.Left - Width : _w.Right) - bboxOffset.X;
-                    Facing = Math.Sign(_w.Left - Left);
-                    platformTarget = _w;
+                        Entity.Y = _w.Top - bboxOffset.Y;
+                        Entity.X = ((inputDir == 1) ? _w.Left - Width : _w.Right) - bboxOffset.X;
+                        Facing = Math.Sign(_w.Left - Left);
+                        platformTarget = _w;
 
-                    return;
+                        return;
+                    }
                 }
             }
         }
+        else
+        {
+            Scene.CollisionSystem.TileMeeting(TopEdge.Shift(inputDir, 0), false);
+        }
+    }
+
+    public override bool IsRiding(Solid solid)
+    {
+        return base.IsRiding(solid) || ((State == PlayerState.LedgeGrab || State == PlayerState.Wallslide) && solid.Intersects(Hitbox.Shift(Facing, 0)));
     }
 
     private void Grounded()
@@ -919,6 +934,7 @@ public class Player : Actor
         canJump = true;
         canLedgeGrab = true;
         canWalljump = true;
+        flipGun = false;
 
         accel = baseGroundAcceleration;
         fric = baseGroundFriction;
@@ -1094,6 +1110,8 @@ public class Player : Actor
                 }
             }
 
+            var gunSpriteEffects = (SpriteEffects)((((int)spriteEffects) << 1) & 2) ^ (flipGun ? SpriteEffects.FlipVertically : 0);
+
             Renderer.SpriteBatch.Draw(
                 texture,
                 new Vector2(
@@ -1105,7 +1123,7 @@ public class Player : Actor
                 angle,
                 new Vector2(2, 8),
                 new Vector2(stretch, squash),
-                (SpriteEffects)((((int)spriteEffects) << 1) & 2),
+                gunSpriteEffects,
                 0
             );
         }
