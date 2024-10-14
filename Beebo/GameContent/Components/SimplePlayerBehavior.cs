@@ -1,5 +1,6 @@
 using Jelly;
 using Jelly.Components;
+using Jelly.Utilities;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -47,26 +48,26 @@ public class SimplePlayerBehavior : Actor
         {
             if(velocity.X < 0)
             {
-                velocity.X = Util.Approach(velocity.X, 0, 0.08f * delta);
+                velocity.X = MathUtil.Approach(velocity.X, 0, 0.08f * delta);
             }
 
-            velocity.X = Util.Approach(velocity.X, MaxSpeed, 0.12f * delta);
+            velocity.X = MathUtil.Approach(velocity.X, MaxSpeed, 0.12f * delta);
         }
         else if(inputDir == -1)
         {
             if(velocity.X > 0)
             {
-                velocity.X = Util.Approach(velocity.X, 0, 0.08f * delta);
+                velocity.X = MathUtil.Approach(velocity.X, 0, 0.08f * delta);
             }
 
-            velocity.X = Util.Approach(velocity.X, -MaxSpeed, 0.12f * delta);
+            velocity.X = MathUtil.Approach(velocity.X, -MaxSpeed, 0.12f * delta);
         }
         else
         {
-            velocity.X = Util.Approach(velocity.X, 0, 0.16f * delta);
+            velocity.X = MathUtil.Approach(velocity.X, 0, 0.16f * delta);
         }
 
-        velocity.Y = Util.Approach(velocity.Y, 20, 0.2f * delta);
+        velocity.Y = MathUtil.Approach(velocity.Y, 20, 0.2f * delta);
 
         MoveX(velocity.X, () => {
             velocity.X = 0;

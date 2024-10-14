@@ -29,7 +29,13 @@ public class SceneDef : RegistryEntry
         {
             if(Collisions.Tiles is not null)
             {
-                scene.CollisionSystem.JsonTiles = Collisions.Tiles;
+                for(int y = 0; y < Collisions.Tiles.Length; y++)
+                {
+                    for(int x = 0; x < Collisions.Tiles[0].Length; x++)
+                    {
+                        scene.CollisionSystem.SetTile(Collisions.Tiles[y][x], new(x, y));
+                    }
+                }
             }
 
             scene.CollisionSystem.Visible = Collisions.Visible;

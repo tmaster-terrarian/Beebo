@@ -9,6 +9,7 @@ using Microsoft.Xna.Framework.Input;
 using System;
 using Jelly.Graphics;
 using Jelly.Utilities;
+using Beebo.Graphics;
 
 namespace Beebo.GameContent.Components;
 
@@ -38,24 +39,25 @@ public class Player : Actor
     private readonly float baseGroundFriction = 0.14f;
     private readonly float baseAirAcceleration = 0.07f;
     private readonly float baseAirFriction = 0.02f;
+    private readonly int baseBulletDelay = 6;
+    private readonly int baseBombDelay = 90;
 
     private float moveSpeed;
     private float jumpSpeed;
     private float accel;
     private float fric;
 
+    private int jumpBuffer;
+    private int inputDir;
     private bool jumpCancelled;
     private bool running;
     private bool skidding;
-    private int jumpBuffer;
-    private int inputDir;
     private bool wasOnGround;
     private bool onJumpthrough;
 
     private Vector2 oldVelocity;
 
     private float duck;
-    private float lookup;
 
     private bool canJump = true;
     private bool canWalljump = true;
@@ -74,6 +76,8 @@ public class Player : Actor
     private float stretch = 1;
 
     private float recoil;
+    private int bulletDelay;
+    private int bombDelay;
 
     // TIMERS
     private int ledgegrabTimer;
@@ -90,6 +94,8 @@ public class Player : Actor
     private Point PivotLedge = new(18, 12);
 
     private Solid platformTarget = null;
+
+    public float Lookup { get; private set; }
 
     class AfterImage
     {
@@ -130,8 +136,6 @@ public class Player : Actor
     public PlayerState State {
         get => _state;
         set {
-            if(value < 0 || value > PlayerState.Dead) value = PlayerState.IgnoreState;
-
             if(_state != value)
             {
                 _stateJustChanged = true;
@@ -145,7 +149,17 @@ public class Player : Actor
         }
     }
 
-    protected bool FaceTowardsMouse { get; set; } = true;
+    public bool FaceTowardsMouse { get; private set; } = true;
+
+    public int VisualFacing {
+        get {
+            if(State != PlayerState.Normal) return Facing;
+
+            int facing = FaceTowardsMouse ? Math.Sign(Main.Camera.MousePositionInWorld.X - Center.X) : Facing;
+            if(facing == 0) facing = Facing;
+            return facing;
+        }
+    }
 
     public bool UseGamePad { get; set; }
 
@@ -168,6 +182,7 @@ public class Player : Actor
         SetHitbox(MaskNormal, PivotNormal);
 
         Entity.Depth = 50;
+        Entity.Tag.Add(EntityTags.Player);
     }
 
     void AddTexture(string path, int frameCount = 1)
@@ -203,7 +218,7 @@ public class Player : Actor
         running = textureIndex == TextureIndex.Run || textureIndex == TextureIndex.RunFast;
 
         if(State != PlayerState.LedgeClimb)
-            ledgegrabTimer = Util.Approach(ledgegrabTimer, 0, 1);
+            ledgegrabTimer = MathUtil.Approach(ledgegrabTimer, 0, 1);
 
         inputDir = InputMapping.Right.IsDown.ToInt32() - InputMapping.Left.IsDown.ToInt32();
 
@@ -228,7 +243,7 @@ public class Player : Actor
         {
             moveSpeed *= 0.5f;
             if(Math.Abs(velocity.X) > moveSpeed)
-                velocity.X = Util.Approach(velocity.X, moveSpeed * inputDir, 0.25f);
+                velocity.X = MathUtil.Approach(velocity.X, moveSpeed * inputDir, 0.25f);
         }
 
         StateUpdate();
@@ -419,12 +434,21 @@ public class Player : Actor
             // }
         }
 
+        if(Input.GetDown(Keys.LeftControl))
+        {
+            BottomMiddle = Main.Camera.MousePositionInWorld;
+            velocity = Vector2.Zero;
+        }
+
+        if(!float.IsNormal(velocity.X)) velocity.X = 0;
+        if(!float.IsNormal(velocity.Y)) velocity.Y = 0;
+
         MoveX(velocity.X, () => {
             if(State == PlayerState.Dead)
             {
                 velocity.X = -velocity.X * 0.9f;
             }
-            else for(int j = 0; j < Util.RoundToInt(MathHelper.Max(Time.DeltaTime, 1)); j++)
+            else for(int j = 0; j < MathUtil.RoundToInt(MathHelper.Max(Time.DeltaTime, 1)); j++)
             {
                 if(inputDir != 0 && !CheckColliding(Hitbox.Shift(inputDir, -2)))
                 {
@@ -519,12 +543,66 @@ public class Player : Actor
             }
         }
 
-        squash = Util.Approach(squash, 1, 0.15f);
-        stretch = Util.Approach(stretch, 1, 0.1f);
+        squash = MathUtil.Approach(squash, 1, 0.15f);
+        stretch = MathUtil.Approach(stretch, 1, 0.1f);
 
         if(inputDir != 0 && running && CheckColliding(Hitbox.Shift(inputDir, 0), true))
         {
             textureIndex = TextureIndex.Idle;
+        }
+
+        UpdateGun();
+    }
+
+    private void UpdateGun()
+    {
+        if(bulletDelay > 0) bulletDelay--;
+        if(bombDelay > 0) bombDelay--;
+
+        recoil = MathHelper.Max(0, recoil - 1);
+        if(InputMapping.PrimaryFire.IsDown && bulletDelay == 0)
+        {
+            Main.Camera.AddShake(1, 5);
+            recoil = 2;
+            bulletDelay = baseBulletDelay;
+
+            // spawn boolets
+
+            // with (instance_create_depth(x, y, depth - 3, oBullet))
+            // {
+            // 	parent = obj_player
+            //     _team = team.player
+            //     audio_play_sound(snShot, 1, false);
+
+            //     speed = 12;
+            //     direction = other.image_angle + random_range(-v, v);
+            //     image_angle = direction;
+
+            //     damage = obj_player.damage
+            // }
+
+
+            // spawn casing
+
+            // with(instance_create_depth(x + lengthdir_x(4, image_angle), y + lengthdir_y(4, image_angle) - 1, depth - 5, fx_casing))
+            // {
+            //     image_yscale = other.image_yscale
+            //     angle = other.image_angle
+            //     dir = other.image_yscale
+            //     hsp = -other.image_yscale * random_range(1, 1.5)
+            //     vsp = -1 + random_range(-0.2, 0.1)
+            // }
+        }
+
+        if(InputMapping.SecondaryFire.IsDown && bombDelay == 0)
+        {
+            // kill bombas
+
+            Main.Camera.AddShake(2, 10);
+            recoil = 4;
+            bombDelay = baseBombDelay;
+
+            // spawn bombas
         }
     }
 
@@ -547,9 +625,31 @@ public class Player : Actor
                 break;
             case PlayerState.Normal:
                 break;
+            case PlayerState.LedgeGrab:
+                velocity = Vector2.Zero;
+                if(Facing == 0) Facing = 1;
+                break;
             case PlayerState.Dead:
                 break;
             default:
+                break;
+        }
+    }
+
+    private void OnStateExit(PlayerState state)
+    {
+        switch(state)
+        {
+            case PlayerState.IgnoreState:
+                break;
+            case PlayerState.StandIdle:
+                break;
+            case PlayerState.Normal:
+                break;
+            case PlayerState.LedgeGrab:
+                ledgegrabTimer = 15;
+                break;
+            case PlayerState.Dead:
                 break;
         }
     }
@@ -569,7 +669,7 @@ public class Player : Actor
         switch(State)
         {
             case PlayerState.StandIdle:
-                velocity.X = Util.Approach(velocity.X, 0, fric * 2);
+                velocity.X = MathUtil.Approach(velocity.X, 0, fric * 2);
 
                 if(OnGround)
                 {
@@ -597,7 +697,7 @@ public class Player : Actor
                         else
                             skidding = false;
 
-                        velocity.X = Util.Approach(velocity.X, 0, fric);
+                        velocity.X = MathUtil.Approach(velocity.X, 0, fric);
                     }
                     else if(OnGround && velocity.Y >= 0)
                     {
@@ -617,12 +717,12 @@ public class Player : Actor
 
                     if(inputDir * velocity.X < moveSpeed)
                     {
-                        velocity.X = Util.Approach(velocity.X, inputDir * moveSpeed, accel);
+                        velocity.X = MathUtil.Approach(velocity.X, inputDir * moveSpeed, accel);
                     }
 
                     if(inputDir * velocity.X > moveSpeed && OnGround)
                     {
-                        velocity.X = Util.Approach(velocity.X, inputDir * moveSpeed, fric/3);
+                        velocity.X = MathUtil.Approach(velocity.X, inputDir * moveSpeed, fric/3);
                     }
 
                     if(OnGround)
@@ -633,12 +733,12 @@ public class Player : Actor
                 else
                 {
                     running = false;
-                    velocity.X = Util.Approach(velocity.X, oldVelocity.X, fric * 2);
+                    velocity.X = MathUtil.Approach(velocity.X, oldVelocity.X, fric * 2);
 
                     if (Math.Abs(velocity.X) < moveSpeed)
                     {
                         skidding = false;
-                        // run = Util.Approach(run, 0, global.dt)
+                        // run = MathUtil.Approach(run, 0, global.dt)
                     }
                     if (Math.Abs(velocity.X) < 1.5f && OnGround && landTimer <= 0)
                     {
@@ -648,33 +748,36 @@ public class Player : Actor
                         {
                             textureIndex = TextureIndex.Duck;
                             frame = duck;
-                            lookup = -0.5f;
+                            Lookup = -0.5f;
                         }
                         else if(lookingUp)
                         {
                             textureIndex = TextureIndex.LookUp;
-                            lookup = 1;
+                            Lookup = 1;
                         }
                         else
                         {
-                            lookup = 0;
+                            Lookup = 0;
                         }
                     }
                 }
 
                 if (InputMapping.Down.IsDown && OnGround)
-                    duck = Util.Approach(duck, 3, 1);
+                    duck = MathUtil.Approach(duck, 3, 1);
                 else if(!CheckColliding(Hitbox.Shift(0, -6)))
                 {
-                    duck = Util.Approach(duck, 0, 1);
+                    duck = MathUtil.Approach(duck, 0, 1);
                 }
 
                 if(!OnGround)
                 {
-                    lookup = 0;
+                    Lookup = 0;
 
-                    if(velocity.Y >= -0.5f)
+                    if(velocity.Y >= -1f)
                     {
+                        if(CheckColliding(Hitbox.Shift(inputDir, 0), true))
+                            wallslideTimer++;
+
                         CheckLedgeGrab();
                     }
                     else
@@ -682,19 +785,19 @@ public class Player : Actor
                     if (wallslideTimer >= 5)
                         State = PlayerState.Wallslide;
 
-                    jumpBuffer = Util.Approach(jumpBuffer, 0, 1);
+                    jumpBuffer = MathUtil.Approach(jumpBuffer, 0, 1);
 
                     textureIndex = TextureIndex.Jump;
                     if (velocity.Y >= 0.1)
-                        velocity.Y = Util.Approach(velocity.Y, 20, gravity);
+                        velocity.Y = MathUtil.Approach(velocity.Y, 20, gravity);
                     if (velocity.Y < 0)
-                        velocity.Y = Util.Approach(velocity.Y, 20, gravity);
+                        velocity.Y = MathUtil.Approach(velocity.Y, 20, gravity);
                     else if (velocity.Y < 2)
-                        velocity.Y = Util.Approach(velocity.Y, 20, gravity * 0.25f);
+                        velocity.Y = MathUtil.Approach(velocity.Y, 20, gravity * 0.25f);
                     if (velocity.Y < 0)
-                        frame = Util.Approach(frame, 1, 0.2f);
+                        frame = MathUtil.Approach(frame, 1, 0.2f);
                     else if (velocity.Y >= 0.5)
-                        frame = Util.Approach(frame, 5, 0.5f);
+                        frame = MathUtil.Approach(frame, 5, 0.5f);
                     else
                         frame = 3;
                 }
@@ -717,7 +820,7 @@ public class Player : Actor
                     frame += Math.Abs(velocity.X) / (8f / frameCounts[(int)textureIndex] * 6);
                 else if (duck > 0)
                     frame += Math.Abs(velocity.X / 4);
-                landTimer = Util.Approach(landTimer, 0, 1);
+                landTimer = MathUtil.Approach(landTimer, 0, 1);
 
                 fxTrail = Math.Abs(velocity.X) > 1.3f * moveSpeed;
 
@@ -726,9 +829,9 @@ public class Player : Actor
             case PlayerState.Wallslide: {
                 canWalljump = true;
                 if (velocity.Y < 0)
-                    velocity.Y = Util.Approach(velocity.Y, 20, 0.5f);
+                    velocity.Y = MathUtil.Approach(velocity.Y, 20, 0.5f);
                 else
-                    velocity.Y = Util.Approach(velocity.Y, 20 / 3, gravity / 3);
+                    velocity.Y = MathUtil.Approach(velocity.Y, 20 / 3f, gravity / 3f);
                 if (!CheckColliding(Hitbox.Shift(inputDir * 2, 0), true))
                 {
                     State = PlayerState.Normal;
@@ -762,6 +865,15 @@ public class Player : Actor
                 velocity.Y = MathHelper.Clamp(velocity.Y, -99, 2);
                 break;
             }
+
+            case PlayerState.LedgeGrab:
+            {
+                canLedgeGrab = false;
+                canWalljump = false;
+
+                break;
+            }
+
             case PlayerState.IgnoreState: default:
                 break;
         }
@@ -769,43 +881,28 @@ public class Player : Actor
 
     private void CheckLedgeGrab()
     {
-        var _w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift(2 * inputDir, 0));
+        var _w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift(inputDir, 0));
         if (canLedgeGrab && ledgegrabTimer == 0 && _w is not null && !CheckColliding(Hitbox))
         {
             if(!CheckColliding(new((inputDir == 1) ? _w.Left + 1 : _w.Right - 1, _w.Top - 1, 1, 1), true)
-            && !CheckColliding(new((inputDir == 1) ? _w.Left - 2 : _w.Right + 2, _w.Top + 10, 1, 1), true)
-            && (_w.Top >= 4))
+            && !CheckColliding(new((inputDir == 1) ? _w.Left - 2 : _w.Right + 2, _w.Top + 18, 1, 1), true))
             {
-                if (Math.Sign(Top - _w.Top) <= 0 && !CheckColliding(new(Entity.X, _w.Top - 1, Width, Height), true) && !CheckColliding(Hitbox.Shift(0, 2), true))
+                if (Math.Sign(Top - _w.Top) <= 0 && !CheckColliding(new(Left, _w.Top - 1, Width, Height), true) && !CheckColliding(Hitbox.Shift(0, 2), true))
                 {
                     wallslideTimer = 0;
-                    Entity.Y = _w.Top;
-                    Entity.X = (inputDir == 1) ? _w.Left : _w.Right;
-                    Facing = (inputDir != 0) ? Math.Sign(_w.Entity.X - Entity.X) : Facing;
                     State = PlayerState.LedgeGrab;
+
                     SetHitbox(MaskLedge, PivotLedge);
                     textureIndex = TextureIndex.LedgeGrab;
-                    velocity = Vector2.Zero;
+
+                    Entity.Y = _w.Top - bboxOffset.Y;
+                    Entity.X = ((inputDir == 1) ? _w.Left - Width : _w.Right) - bboxOffset.X;
+                    Facing = Math.Sign(_w.Left - Left);
                     platformTarget = _w;
 
                     return;
                 }
             }
-        }
-    }
-
-    private void OnStateExit(PlayerState state)
-    {
-        switch(state)
-        {
-            case PlayerState.IgnoreState:
-                break;
-            case PlayerState.StandIdle:
-                break;
-            case PlayerState.Normal:
-                break;
-            case PlayerState.Dead:
-                break;
         }
     }
 
@@ -818,6 +915,10 @@ public class Player : Actor
     {
         moveSpeed = baseMoveSpeed;
         jumpSpeed = baseJumpSpeed;
+
+        canJump = true;
+        canLedgeGrab = true;
+        canWalljump = true;
 
         accel = baseGroundAcceleration;
         fric = baseGroundFriction;
@@ -867,10 +968,7 @@ public class Player : Actor
             );
         }
 
-        int facing = FaceTowardsMouse ? Math.Sign(Main.Camera.MousePositionInWorld.X - Center.X) : Facing;
-        if(facing == 0) facing = Facing;
-
-        SpriteEffects spriteEffects = facing < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
+        SpriteEffects spriteEffects = VisualFacing < 0 ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
 
         while(frame > frameCounts[(int)textureIndex])
             frame -= frameCounts[(int)textureIndex];
@@ -999,7 +1097,7 @@ public class Player : Actor
             Renderer.SpriteBatch.Draw(
                 texture,
                 new Vector2(
-                    Entity.X + x * stretch * facing + -recoil * MathF.Cos(angle),
+                    Entity.X + x * stretch * VisualFacing + -recoil * MathF.Cos(angle),
                     Entity.Y + y * squash + -recoil * MathF.Sin(angle)
                 ),
                 null,
@@ -1017,6 +1115,13 @@ public class Player : Actor
         {
             Renderer.SpriteBatch.DrawNineSlice(Main.LoadContent<Texture2D>("Images/Debug/tileOutline"), Hitbox, null, new Point(1), new Point(1), Color.Red * 0.5f);
         }
+    }
+
+    public override void DrawUI()
+    {
+        if(!JellyBackend.DebugEnabled) return;
+
+        Renderer.SpriteBatch.DrawStringSpacesFix(MasterRenderer.Fonts.RegularFont, State.ToString(), new Vector2(1, 1), Color.White, 6);
     }
 }
 

@@ -18,6 +18,7 @@ using Jelly.Graphics;
 using Jelly.IO;
 
 using Steamworks;
+using Beebo.GameContent.Components;
 
 namespace Beebo;
 
@@ -34,12 +35,15 @@ public class Main : Game
     public static Logger Logger { get; } = new("Main");
 
     public static Camera Camera => camera;
+    public static Vector2 CameraTarget;
 
     public static ulong TotalFrames { get; private set; }
     public static float FreezeTimer { get; set; }
     public static CoroutineRunner GlobalCoroutineRunner { get; } = new();
 
     public static bool PlayerControlsDisabled => Chat.WindowOpen || Input.InputDisabled || BeeboImGuiRenderer.Enabled || FreezeTimer > 0;
+
+    public static Entity Player { get; private set; }
 
     public static int NetID => P2PManager.GetMemberIndex(P2PManager.MyID);
     public static bool IsHost => P2PManager.GetLobbyOwner() == P2PManager.MyID;
@@ -102,6 +106,7 @@ public class Main : Game
         Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
         camera = new Camera();
+        Camera.SetShake(0, 1); // TODO: remove line after updating Jelly to 0.1.0-beta.8
 
         if(Program.UseSteamworks)
         {
@@ -189,8 +194,17 @@ public class Main : Game
             FreezeTimer = Math.Max(FreezeTimer - Time.UnscaledDeltaTime, 0);
         else
         {
+            var p = Player.GetComponent<Player>();
+            CameraTarget = new(
+                p.Center.X + (Input.GetDown(Keys.LeftControl) ? 0 : Math.Sign(p.VisualFacing) * 12),
+                p.Center.Y + (Input.GetDown(Keys.LeftControl) ? 0 : -12 - p.Lookup * 24 + p.velocity.Y)
+            );
+
             Scene?.PreUpdate();
             Scene?.Update();
+
+            camera.Position += (CameraTarget - (Renderer.ScreenSize.ToVector2() / 2f) - camera.Position) / 4f;
+
             Scene?.PostUpdate();
         }
 
@@ -207,16 +221,15 @@ public class Main : Game
         TotalFrames++;
     }
 
-    private void PreDraw(GameTime gameTime)
+    protected override bool BeginDraw()
     {
         Scene?.PreDraw();
+        return base.BeginDraw();
     }
 
     protected override void Draw(GameTime gameTime)
     {
-        PreDraw(gameTime);
-
-        Renderer.BeginDraw(SamplerState.PointWrap, camera.Transform);
+        Renderer.BeginDraw(samplerState: SamplerState.PointWrap, transformMatrix: camera.Transform);
 
         var rect = GraphicsDevice.ScissorRectangle;
         GraphicsDevice.ScissorRectangle = new(0, 0, Scene.Width, Scene.Height);
@@ -245,7 +258,27 @@ public class Main : Game
 
     private void SceneChanged(Scene oldScene, Scene newScene)
     {
-        
+        Player ??= new() {
+            Enabled = newScene != null,
+            Visible = newScene != null,
+            Position = Point.Zero,
+            Components = {
+                new Player {
+                    State = newScene != null ? PlayerState.Normal : PlayerState.IgnoreState,
+                    Enabled = true,
+                    Visible = true,
+                },
+            },
+        };
+
+        switch(newScene.Name)
+        {
+            case "Title":
+            {
+                newScene?.Entities.Add(Player);
+                break;
+            }
+        }
     }
 
     private void Game_Exiting(object sender, EventArgs e)
