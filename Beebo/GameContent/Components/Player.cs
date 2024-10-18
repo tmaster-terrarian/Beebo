@@ -76,6 +76,8 @@ public class Player : Actor
     private float stretch = 1;
 
     private float recoil;
+    private float gunAngle;
+    private Point gunOffset;
     private int bulletDelay;
     private int bombDelay;
 
@@ -84,12 +86,12 @@ public class Player : Actor
     private int landTimer;
     private int wallslideTimer;
 
-    private Rectangle MaskNormal = new(-4, -14, 8, 14);
-    private Rectangle MaskDuck = new(-4, -8, 8, 8);
-    private Rectangle MaskLedge = new(-8, 0, 8, 14);
-    private Point PivotNormal = new(12, 24);
-    private Point PivotDuck = new(12, 24);
-    private Point PivotLedge = new(18, 12);
+    private Rectangle MaskNormal = new(0, -14, 8, 14);
+    private Rectangle MaskDuck = new(0, -8, 8, 8);
+    private Rectangle MaskLedge = new(-4, 0, 8, 14);
+    private Point PivotNormal = new(0, 24);
+    private Point PivotDuck = new(0, 24);
+    private Point PivotLedge = new(7, 12);
 
     private Solid platformTarget = null;
 
@@ -195,10 +197,10 @@ public class Player : Actor
 
     void SetHitbox(Rectangle mask, Point pivot)
     {
-        bboxOffset = mask.Location;
+        bboxOffset = new Point(-4 + mask.X * Facing, mask.Y);
         Width = mask.Width;
         Height = mask.Height;
-        Entity.Pivot = pivot;
+        Entity.Pivot = new Point(12 + pivot.X * Facing, pivot.Y);
     }
 
     public override void Update()
@@ -560,6 +562,110 @@ public class Player : Actor
         if(bulletDelay > 0) bulletDelay--;
         if(bombDelay > 0) bombDelay--;
 
+        int x = 0;
+        int y = 0;
+
+        switch(textureIndex)
+        {
+            case TextureIndex.Idle:
+            case TextureIndex.LookUp: {
+                x = -3;
+                switch((int)frame % 6)
+                {
+                    case 0:
+                    case 1:
+                    case 2:
+                        y = -6;
+                        break;
+                    case 3:
+                    case 4:
+                    case 5:
+                        y = -7;
+                        break;
+                }
+                break;
+            }
+            case TextureIndex.Run: {
+                x = -3;
+                switch((int)frame % 8)
+                {
+                    case 0:
+                    case 3:
+                    case 4:
+                    case 7:
+                        y = -6;
+                        break;
+                    case 1:
+                    case 2:
+                    case 5:
+                    case 6:
+                        y = -5;
+                        break;
+                }
+                break;
+            }
+            case TextureIndex.RunFast: {
+                x = -3;
+                switch((int)frame % 6)
+                {
+                    case 0: x = -3; y = -6; break;
+                    case 1: x = -2; y = -5; break;
+                    case 2: x = -1; y = -6; break;
+                    case 3: x = -0; y = -6; break;
+                    case 4: x = -0; y = -5; break;
+                    case 5: x = -1; y = -6; break;
+                }
+                break;
+            }
+            case TextureIndex.Crawl: {
+                switch((int)frame % 8)
+                {
+                    case 0: x = -2; y = -2; break;
+                    case 1: x = -4; y = -2; break;
+                    case 2: x = -5; y = -2; break;
+                    case 3: x = -4; y = -2; break;
+                    case 4: x = -3; y = -3; break;
+                    case 5: x = -1; y = -3; break;
+                    case 6: x =  1; y = -2; break;
+                    case 7: x =  0; y = -2; break;
+                }
+                break;
+            }
+            default: {
+                if(State == PlayerState.Wallslide)
+                {
+                    x = 3;
+                    y = -7;
+                }
+                else if(State == PlayerState.LedgeGrab)
+                {
+                    x = -4;
+                    y = 3;
+                }
+                else if(State == PlayerState.LedgeClimb)
+                {
+                    x = -4;
+                    y = -5;
+                }
+                else if(duck > 0)
+                {
+                    x = -3 + (int)(1/3f * duck);
+                    y = -5 + (int)duck;
+                }
+                else
+                {
+                    x = -3;
+                    y = -7;
+                }
+                break;
+            }
+        }
+        gunOffset.X = x;
+        gunOffset.Y = y;
+
+        var vec = (Main.Camera.MousePositionInWorld - new Point(Entity.X + x * VisualFacing, Entity.Y + y)).ToVector2().SafeNormalize();
+        gunAngle = MathHelper.ToRadians(MathF.Round(MathHelper.ToDegrees(MathF.Atan2(vec.Y, vec.X)) / 10) * 10);
+
         recoil = MathHelper.Max(0, recoil - 1);
         if(InputMapping.PrimaryFire.IsDown && bulletDelay == 0)
         {
@@ -582,6 +688,15 @@ public class Player : Actor
             //     damage = obj_player.damage
             // }
 
+            // IMPORTANT: FIX ADDING/REMOVING ENTITIES MID-UPDATE
+            // Scene.Entities.Add(new Entity(new(Entity.X + gunOffset.X + (int)(12 * MathF.Cos(gunAngle)), Entity.Y + gunOffset.Y + (int)(-1 * MathF.Cos(gunAngle)))) {
+            //     Components = {
+            //         new Bullet {
+            //             Direction = gunAngle,
+            //             velocity = new(12 * MathF.Cos(gunAngle), 12 * MathF.Sin(gunAngle))
+            //         }
+            //     }
+            // });
 
             // spawn casing
 
@@ -842,7 +957,7 @@ public class Player : Actor
                 }
                 else
                 {
-                    CheckLedgeGrab();
+                    if(CheckLedgeGrab()) break;
                 }
                 textureIndex = TextureIndex.Wallslide;
                 // var n = choose(0, 1, 0, 1, 1, 0, 0, 0);
@@ -871,8 +986,26 @@ public class Player : Actor
 
             case PlayerState.LedgeGrab:
             {
+                flipGun = true;
                 canLedgeGrab = false;
                 canWalljump = false;
+                duck = 0;
+                canJump = true;
+                velocity = Vector2.Zero;
+
+                textureIndex = TextureIndex.LedgeGrab;
+
+                if((platformTarget == null || !platformTarget.Intersects(Hitbox.Shift(Facing, 0))) && !CheckColliding(Hitbox.Shift(Facing, 0), true))
+                {
+                    textureIndex = TextureIndex.Jump;
+                    SetHitbox(MaskNormal, PivotNormal);
+                    MoveY(12, null);
+                    MoveX(-4 * Facing, null);
+                    State = PlayerState.Normal;
+                    break;
+                }
+
+                // ledgeClimb check
 
                 break;
             }
@@ -882,7 +1015,7 @@ public class Player : Actor
         }
     }
 
-    private void CheckLedgeGrab()
+    private bool CheckLedgeGrab()
     {
         var _w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift(inputDir, 0));
         if(_w is not null)
@@ -905,15 +1038,41 @@ public class Player : Actor
                         Facing = Math.Sign(_w.Left - Left);
                         platformTarget = _w;
 
-                        return;
+                        return true;
                     }
                 }
             }
         }
         else
         {
-            Scene.CollisionSystem.TileMeeting(TopEdge.Shift(inputDir, 0), false);
+            if(Scene.CollisionSystem.TileMeeting(TopEdge.Shift(inputDir, 0), false))
+            {
+                Point point = new(Facing < 0 ? Left - 1 : Right + 1, Top);
+                Point tilePos = MathUtil.Snap(point.ToVector2(), CollisionSystem.TileSize).ToPoint();
+                Rectangle _w2 = new(tilePos, new(CollisionSystem.TileSize));
+
+                if(!CheckColliding(new((inputDir == 1) ? _w2.Left + 1 : _w2.Right - 1, _w2.Top - 1, 1, 1), true)
+                && !CheckColliding(new((inputDir == 1) ? _w2.Left - 2 : _w2.Right + 2, _w2.Top + 18, 1, 1), true))
+                {
+                    if (Math.Sign(Top - _w2.Top) <= 0 && !CheckColliding(new(Left, _w2.Top - 1, Width, Height), true) && !CheckColliding(Hitbox.Shift(0, 2), true))
+                    {
+                        wallslideTimer = 0;
+                        State = PlayerState.LedgeGrab;
+
+                        SetHitbox(MaskLedge, PivotLedge);
+                        textureIndex = TextureIndex.LedgeGrab;
+
+                        Entity.Y = _w2.Top - bboxOffset.Y;
+                        Entity.X = ((inputDir == 1) ? _w2.Left - Width : _w2.Right) - bboxOffset.X;
+                        Facing = Math.Sign(_w2.Left - Left);
+                        platformTarget = null;
+
+                        return true;
+                    }
+                }
+            }
         }
+        return false;
     }
 
     public override bool IsRiding(Solid solid)
@@ -1008,119 +1167,20 @@ public class Player : Actor
         {
             var texture = Main.LoadContent<Texture2D>("Images/Player/gun");
 
-            var vec = (Main.Camera.MousePositionInWorld - Center).ToVector2().SafeNormalize();
-            float angle = MathHelper.ToRadians(MathF.Round(MathHelper.ToDegrees(MathF.Atan2(vec.Y, vec.X)) / 10) * 10);
-
-            int x = 0;
-            int y = 0;
-
-            switch(textureIndex)
-            {
-                case TextureIndex.Idle:
-                case TextureIndex.LookUp: {
-                    x = -3;
-                    switch((int)frame % 6)
-                    {
-                        case 0:
-                        case 1:
-                        case 2:
-                            y = -6;
-                            break;
-                        case 3:
-                        case 4:
-                        case 5:
-                            y = -7;
-                            break;
-                    }
-                    break;
-                }
-                case TextureIndex.Run: {
-                    x = -3;
-                    switch((int)frame % 8)
-                    {
-                        case 0:
-                        case 3:
-                        case 4:
-                        case 7:
-                            y = -6;
-                            break;
-                        case 1:
-                        case 2:
-                        case 5:
-                        case 6:
-                            y = -5;
-                            break;
-                    }
-                    break;
-                }
-                case TextureIndex.RunFast: {
-                    x = -3;
-                    switch((int)frame % 6)
-                    {
-                        case 0: x = -3; y = -6; break;
-                        case 1: x = -2; y = -5; break;
-                        case 2: x = -1; y = -6; break;
-                        case 3: x = -0; y = -6; break;
-                        case 4: x = -0; y = -5; break;
-                        case 5: x = -1; y = -6; break;
-                    }
-                    break;
-                }
-                case TextureIndex.Crawl: {
-                    switch((int)frame % 8)
-                    {
-                        case 0: x = -2; y = -2; break;
-                        case 1: x = -4; y = -2; break;
-                        case 2: x = -5; y = -2; break;
-                        case 3: x = -4; y = -2; break;
-                        case 4: x = -3; y = -3; break;
-                        case 5: x = -1; y = -3; break;
-                        case 6: x =  1; y = -2; break;
-                        case 7: x =  0; y = -2; break;
-                    }
-                    break;
-                }
-                default: {
-                    if(State == PlayerState.Wallslide)
-                    {
-                        x = 3;
-                        y = -7;
-                    }
-                    else if(State == PlayerState.LedgeGrab)
-                    {
-                        x = -4;
-                        y = 3;
-                    }
-                    else if(State == PlayerState.LedgeClimb)
-                    {
-                        x = -4;
-                        y = -5;
-                    }
-                    else if(duck > 0)
-                    {
-                        x = -3 + (int)(1/3f * duck);
-                        y = -5 + (int)duck;
-                    }
-                    else
-                    {
-                        x = -3;
-                        y = -7;
-                    }
-                    break;
-                }
-            }
+            int x = gunOffset.X;
+            int y = gunOffset.Y;
 
             var gunSpriteEffects = (SpriteEffects)((((int)spriteEffects) << 1) & 2) ^ (flipGun ? SpriteEffects.FlipVertically : 0);
 
             Renderer.SpriteBatch.Draw(
                 texture,
                 new Vector2(
-                    Entity.X + x * stretch * VisualFacing + -recoil * MathF.Cos(angle),
-                    Entity.Y + y * squash + -recoil * MathF.Sin(angle)
+                    Entity.X + x * stretch * VisualFacing + -recoil * MathF.Cos(gunAngle),
+                    Entity.Y + y * squash + -recoil * MathF.Sin(gunAngle)
                 ),
                 null,
                 Color.White,
-                angle,
+                gunAngle,
                 new Vector2(2, 8),
                 new Vector2(stretch, squash),
                 gunSpriteEffects,
@@ -1131,7 +1191,28 @@ public class Player : Actor
 
         if(JellyBackend.DebugEnabled)
         {
+            if(platformTarget != null)
+            {
+                Renderer.SpriteBatch.DrawNineSlice(
+                    Main.LoadContent<Texture2D>("Images/Debug/tileOutline"),
+                    platformTarget.Hitbox,
+                    null,
+                    new Point(1),
+                    new Point(1),
+                    Color.Blue
+                );
+            }
+
             Renderer.SpriteBatch.DrawNineSlice(Main.LoadContent<Texture2D>("Images/Debug/tileOutline"), Hitbox, null, new Point(1), new Point(1), Color.Red * 0.5f);
+
+            Renderer.SpriteBatch.DrawNineSlice(
+                Main.LoadContent<Texture2D>("Images/Debug/tileOutline"),
+                new(Entity.Position - new Point(2, 2), new Point(4, 4)),
+                null,
+                new Point(1),
+                new Point(1),
+                Color.Blue
+            );
         }
     }
 

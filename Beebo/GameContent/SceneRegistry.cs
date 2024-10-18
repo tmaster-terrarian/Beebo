@@ -1,13 +1,11 @@
-using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
+
+using Microsoft.Xna.Framework;
+
 using Jelly;
 using Jelly.Components;
 using Jelly.GameContent;
-using Jelly.Serialization;
-using Microsoft.Xna.Framework;
 
 namespace Beebo.GameContent;
 
@@ -18,7 +16,7 @@ public class SceneRegistry : Registry<SceneDef>
         string path = Path.Combine(Main.ProgramPath, "Content", "Levels");
         foreach(var file in Directory.EnumerateFiles(path, "*.json", SearchOption.AllDirectories))
         {
-            string fileName = file[(path.Length + 1)..^5];
+            string fileName = Path.GetFileNameWithoutExtension(file);
             Add(fileName);
         }
 

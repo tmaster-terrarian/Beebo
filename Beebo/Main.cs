@@ -196,7 +196,10 @@ public class Main : Game
         {
             var p = Player.GetComponent<Player>();
             CameraTarget = new(
-                p.Center.X + (Input.GetDown(Keys.LeftControl) ? 0 : Math.Sign(p.VisualFacing) * 12),
+                p.Center.X + (Input.GetDown(Keys.LeftControl)
+                    ? 0
+                    : Math.Sign(p.VisualFacing * (p.State == PlayerState.Wallslide || p.State == PlayerState.LedgeGrab ? -1 : 1)) * 12),
+
                 p.Center.Y + (Input.GetDown(Keys.LeftControl) ? 0 : -12 - p.Lookup * 24 + p.velocity.Y)
             );
 
