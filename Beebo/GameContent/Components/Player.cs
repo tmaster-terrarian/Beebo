@@ -10,6 +10,7 @@ using System;
 using Jelly.Graphics;
 using Jelly.Utilities;
 using Beebo.Graphics;
+using Jelly.Components.Attributes;
 
 namespace Beebo.GameContent.Components;
 
@@ -24,6 +25,7 @@ public enum PlayerState
     Wallslide,
 }
 
+[RequiredComponent(typeof(Unit))]
 public class Player : Actor
 {
     private static readonly Random nugdeRandom = new();
@@ -510,6 +512,12 @@ public class Player : Actor
                 velocity.Y = 0;
         });
 
+        if(Left < 0 || Right > Scene.Width || Top < 0 || Bottom > Scene.Height)
+        {
+            TopLeft = Point.Zero;
+            velocity = Vector2.Zero;
+        }
+
         if(fxTrail)
         {
             fxTrailCounter++;
@@ -688,15 +696,16 @@ public class Player : Actor
             //     damage = obj_player.damage
             // }
 
-            // IMPORTANT: FIX ADDING/REMOVING ENTITIES MID-UPDATE
-            // Scene.Entities.Add(new Entity(new(Entity.X + gunOffset.X + (int)(12 * MathF.Cos(gunAngle)), Entity.Y + gunOffset.Y + (int)(-1 * MathF.Cos(gunAngle)))) {
-            //     Components = {
-            //         new Bullet {
-            //             Direction = gunAngle,
-            //             velocity = new(12 * MathF.Cos(gunAngle), 12 * MathF.Sin(gunAngle))
-            //         }
-            //     }
-            // });
+            Scene.Entities.Add(new Entity(new(Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)), Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle)))) {
+                Components = {
+                    new Bullet {
+                        Direction = gunAngle,
+                        velocity = new(12 * MathF.Cos(gunAngle), 12 * MathF.Sin(gunAngle)),
+                        Owner = Entity.EntityID,
+                        Damage = 1
+                    },
+                },
+            });
 
             // spawn casing
 

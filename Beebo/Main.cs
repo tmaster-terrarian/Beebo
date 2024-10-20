@@ -98,7 +98,7 @@ public class Main : Game
     {
         Logger.LogInfo("Entering main loop");
 
-        Renderer.PixelScale = GraphicsDevice.Adapter.CurrentDisplayMode.Width / Renderer.ScreenSize.X;
+        Renderer.PixelScale = (GraphicsDevice.Adapter.CurrentDisplayMode.Width / Renderer.ScreenSize.X) - 1;
 
         _graphics.PreferredBackBufferWidth = Renderer.ScreenSize.X * Renderer.PixelScale;
         _graphics.PreferredBackBufferHeight = Renderer.ScreenSize.Y * Renderer.PixelScale;
