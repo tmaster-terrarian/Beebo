@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Text.Json;
+
 using Jelly;
 using Jelly.GameContent;
 using Jelly.Graphics;
 using Jelly.Utilities;
-using Microsoft.Xna.Framework;
 
 namespace Beebo.GameContent;
 
@@ -50,7 +50,7 @@ public class SceneDef : RegistryEntry
 
         foreach(var e in Entities ?? [])
         {
-            e.Create(scene);
+            e.Build(scene);
         }
 
         return scene;

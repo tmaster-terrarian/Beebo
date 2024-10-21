@@ -1,16 +1,16 @@
+using System;
 using System.Collections.Generic;
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+
+using Beebo.Graphics;
 
 using Jelly;
 using Jelly.Components;
-using Microsoft.Xna.Framework.Input;
-using System;
 using Jelly.Graphics;
 using Jelly.Utilities;
-using Beebo.Graphics;
-using Jelly.Components.Attributes;
 
 namespace Beebo.GameContent.Components;
 
@@ -25,7 +25,6 @@ public enum PlayerState
     Wallslide,
 }
 
-[RequiredComponent(typeof(Unit))]
 public class Player : Actor
 {
     private static readonly Random nugdeRandom = new();
@@ -185,9 +184,6 @@ public class Player : Actor
         AddTexture("ledgeclimb", 3);
 
         SetHitbox(MaskNormal, PivotNormal);
-
-        Entity.Depth = 50;
-        Entity.Tag.Add(EntityTags.Player);
     }
 
     void AddTexture(string path, int frameCount = 1)
@@ -696,16 +692,22 @@ public class Player : Actor
             //     damage = obj_player.damage
             // }
 
-            Scene.Entities.Add(new Entity(new(Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)), Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle)))) {
-                Components = {
-                    new Bullet {
-                        Direction = gunAngle,
-                        velocity = new(12 * MathF.Cos(gunAngle), 12 * MathF.Sin(gunAngle)),
-                        Owner = Entity.EntityID,
-                        Damage = 1
+            Scene.Entities.Add(new Entity(
+                new Point(
+                    Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)),
+                    Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle))
+                )) {
+                    Components = {
+                        new BulletProjectile {
+                            Direction = gunAngle,
+                            velocity = new(12 * MathF.Cos(gunAngle), 12 * MathF.Sin(gunAngle)),
+                            Owner = Entity.EntityID,
+                            Damage = 1,
+                            Team = Team.Player
+                        },
                     },
-                },
-            });
+                }
+            );
 
             // spawn casing
 
@@ -728,6 +730,34 @@ public class Player : Actor
             bombDelay = baseBombDelay;
 
             // spawn bombas
+
+            // with (instance_create_depth(x + lengthdir_x(12, image_angle), y + lengthdir_y(12, image_angle) - 1, depth - 2, obj_bomb))
+            // {
+            //     direction = other.image_angle;
+            //     hsp = lengthdir_x(2, direction) + (obj_player.hsp * 0.5) + ((obj_player.state == "grind") * -0.5);
+            //     vsp = lengthdir_y(2, direction) + (obj_player.vsp * 0.25) - 1;
+            //     if((vsp > 0.2) && (obj_player.state == "grind")) max_bounces = 0
+
+            //     if(mouse_check_button(mb_left) || gamepad_button_check(0, gp_shoulderrb)) event_perform(ev_other, ev_user2);
+            // }
+
+            var bomb = new Entity(new Point(
+                Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)),
+                Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle))
+            )) {
+                Components = {
+                    new BombProjectile {
+                        velocity = new(2 * MathF.Cos(gunAngle) + velocity.X * 0.5f, 2 * MathF.Sin(gunAngle) + velocity.Y * 0.25f - 1),
+                        Owner = Entity.EntityID,
+                        Damage = 1,
+                        Team = Team.Player
+                    },
+                },
+            };
+
+            if(InputMapping.PrimaryFire.IsDown) bomb.GetComponent<BombProjectile>().Explode();
+
+            Scene.Entities.Add(bomb);
         }
     }
 

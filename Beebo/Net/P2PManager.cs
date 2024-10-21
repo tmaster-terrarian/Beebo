@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Beebo.GameContent;
-using Beebo.GameContent.Entities;
 using Jelly.GameContent;
 using Jelly.Net;
 using Microsoft.Xna.Framework;

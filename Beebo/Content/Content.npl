@@ -43,6 +43,11 @@
 			"recursive": "True",
 			"action": "copy"
 		},
+		"data": {
+			"path": "Data/*.json",
+			"recursive": "True",
+			"action": "copy"
+		},
 		"effects": {
 			"path": "Effects/*.fx",
 			"recursive": "True",

@@ -39,6 +39,8 @@ public class Main : Game
 
     public static ulong TotalFrames { get; private set; }
     public static float FreezeTimer { get; set; }
+    public static bool Paused { get; private set; }
+
     public static CoroutineRunner GlobalCoroutineRunner { get; } = new();
 
     public static bool PlayerControlsDisabled => Chat.WindowOpen || Input.InputDisabled || BeeboImGuiRenderer.Enabled || FreezeTimer > 0;
@@ -190,25 +192,30 @@ public class Main : Game
 
         GlobalCoroutineRunner.Update(Time.UnscaledDeltaTime);
 
-        if(FreezeTimer > 0)
-            FreezeTimer = Math.Max(FreezeTimer - Time.UnscaledDeltaTime, 0);
-        else
+        if(!Paused)
         {
-            var p = Player.GetComponent<Player>();
-            CameraTarget = new(
-                p.Center.X + (Input.GetDown(Keys.LeftControl)
-                    ? 0
-                    : Math.Sign(p.VisualFacing * (p.State == PlayerState.Wallslide || p.State == PlayerState.LedgeGrab ? -1 : 1)) * 12),
+            if(FreezeTimer > 0)
+                FreezeTimer = Math.Max(FreezeTimer - Time.UnscaledDeltaTime, 0);
+            else
+            {
+                if(Player?.GetComponent<Player>() is Player p)
+                {
+                    CameraTarget = new(
+                        p.Center.X + (Input.GetDown(Keys.LeftControl)
+                            ? 0
+                            : Math.Sign(p.VisualFacing * (p.State == PlayerState.Wallslide || p.State == PlayerState.LedgeGrab ? -1 : 1)) * 12),
 
-                p.Center.Y + (Input.GetDown(Keys.LeftControl) ? 0 : -12 - p.Lookup * 24 + p.velocity.Y)
-            );
+                        p.Center.Y + (Input.GetDown(Keys.LeftControl) ? 0 : -12 - p.Lookup * 24 + p.velocity.Y)
+                    );
+                }
 
-            Scene?.PreUpdate();
-            Scene?.Update();
+                Scene?.PreUpdate();
+                Scene?.Update();
 
-            camera.Position += (CameraTarget - (Renderer.ScreenSize.ToVector2() / 2f) - camera.Position) / 4f;
+                camera.Position += (CameraTarget - (Renderer.ScreenSize.ToVector2() / 2f) - camera.Position) / 4f;
 
-            Scene?.PostUpdate();
+                Scene?.PostUpdate();
+            }
         }
 
         Chat.Update(gameTime);
@@ -261,25 +268,23 @@ public class Main : Game
 
     private void SceneChanged(Scene oldScene, Scene newScene)
     {
-        Player ??= new() {
-            Enabled = newScene != null,
-            Visible = newScene != null,
-            Position = Point.Zero,
-            Components = {
-                new Player {
-                    State = newScene != null ? PlayerState.Normal : PlayerState.IgnoreState,
-                    Enabled = true,
-                    Visible = true,
-                },
-            },
-        };
+        Player ??= EntityRegistry.GetDefStatic("Beebo").Instantiate();
 
-        switch(newScene.Name)
+        if(newScene == null)
         {
-            case "Title":
+            Player.Enabled = false;
+        }
+        else
+        {
+            Player.Enabled = true;
+            Player.GetComponent<Player>().State = PlayerState.Normal;
+            switch(newScene.Name)
             {
-                newScene?.Entities.Add(Player);
-                break;
+                case "Title":
+                {
+                    newScene?.Entities.Add(Player);
+                    break;
+                }
             }
         }
     }

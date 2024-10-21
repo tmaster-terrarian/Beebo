@@ -14,7 +14,7 @@ public class JsonEntity
 {
     public string Name { get; set; } = null;
 
-    public IList<Component>? Components { get; set; }
+    public IList<Component>? Components { get; set; } = [];
 
     public Point Position { get; set; }
 
@@ -28,7 +28,7 @@ public class JsonEntity
 
     [JsonInclude] internal long? EntityID { get; set; } = null;
 
-    public Entity Create(Scene scene)
+    public Entity Build(Scene? scene = null)
     {
         var entity = new Entity(Position)
         {
@@ -44,7 +44,7 @@ public class JsonEntity
         if(Components is not null)
             entity.Components?.Add(Components);
 
-        scene.Entities.Add(entity);
+        scene?.Entities.Add(entity);
 
         return entity;
     }

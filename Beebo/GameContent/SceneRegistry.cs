@@ -14,13 +14,13 @@ public class SceneRegistry : Registry<SceneDef>
     public override void Init()
     {
         string path = Path.Combine(Main.ProgramPath, "Content", "Levels");
-        foreach(var file in Directory.EnumerateFiles(path, "*.json", SearchOption.AllDirectories))
+        foreach(var file in Directory.EnumerateFiles(path, "*.json", SearchOption.TopDirectoryOnly))
         {
             string fileName = Path.GetFileNameWithoutExtension(file);
             Add(fileName);
         }
 
-        // foreach(var file in Directory.EnumerateFiles(Path.Combine(path, "Tracks"), "*.ldtkl", SearchOption.AllDirectories))
+        // foreach(var file in Directory.EnumerateFiles(Path.Combine(path, "Tracks"), "*.ldtkl", SearchOption.TopDirectoryOnly))
         // {
         //     AddLDtk(file, Path.GetFileNameWithoutExtension(file));
         // }
@@ -33,6 +33,7 @@ public class SceneRegistry : Registry<SceneDef>
         var def = LoadFromFile(name);
         if(def is not null)
         {
+            def.Name = name;
             Register(def);
         }
         return def;

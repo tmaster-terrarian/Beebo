@@ -3,10 +3,8 @@ using Jelly.Components;
 
 namespace Beebo.GameContent.Components;
 
-public class Bullet : Projectile
+public class BulletProjectile : Projectile
 {
-    private int lifetime = 200;
-
     public float Direction { get; set; }
 
     public override void OnCreated()
@@ -15,6 +13,7 @@ public class Bullet : Projectile
         Height = 4;
         bboxOffset = new(-2, -2);
         DestroyOnCollision = true;
+        Lifetime = 200;
     }
 
     public override void EntityAwake()
@@ -24,14 +23,5 @@ public class Bullet : Projectile
             Pivot = new(8, 8),
             Rotation = Direction,
         });
-    }
-
-    public override void Update()
-    {
-        lifetime--;
-        if(lifetime == 0)
-            Scene.Entities.Remove(Entity);
-        else
-            base.Update();
     }
 }
