@@ -39,7 +39,7 @@ public class BombProjectile : Projectile
         while(frame > 2)
             frame -= 2;
 
-        var texture = Main.LoadContent<Texture2D>("Images/Entities/bomb");
+        var texture = ContentLoader.Load<Texture2D>("Images/Entities/bomb");
         Rectangle drawFrame = GraphicsUtil.GetFrameInStrip(texture, frame, 2);
 
         Renderer.SpriteBatch.Draw(

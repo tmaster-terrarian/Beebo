@@ -25,7 +25,7 @@ public class SimplePlayerBehavior : Actor
 
         Sprite.TexturePath = "Images/Entities/SimplePlayer/idle";
 
-        var tex = Main.LoadContent<Texture2D>(Sprite.TexturePath);
+        var tex = ContentLoader.Load<Texture2D>(Sprite.TexturePath);
         Sprite.Pivot = new(tex.Width / 2, tex.Height);
 
         bboxOffset = new Point(-Width / 2, -Height);

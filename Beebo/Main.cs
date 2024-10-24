@@ -120,7 +120,7 @@ public class Main : Game
 
         RegistryManager.Initialize();
 
-        JellyBackend.Initialize(new BeeboContentProvider());
+        JellyBackend.Initialize(new ContentLoader(Content));
 
         CommandManager.Initialize();
 
@@ -234,22 +234,31 @@ public class Main : Game
     protected override bool BeginDraw()
     {
         Scene?.PreDraw();
-        return base.BeginDraw();
+        return true;
     }
 
     protected override void Draw(GameTime gameTime)
     {
-        Renderer.BeginDraw(samplerState: SamplerState.PointWrap, transformMatrix: camera.Transform);
-
         var rect = GraphicsDevice.ScissorRectangle;
         GraphicsDevice.ScissorRectangle = new(0, 0, Scene.Width, Scene.Height);
+
+        RasterizerState rasterizerState = new() {
+            Name = "RasterizerState.Scissor",
+            CullMode = CullMode.None,
+            ScissorTestEnable = true,
+        };
+
+        Renderer.BeginDraw(samplerState: SamplerState.PointWrap, transformMatrix: camera.Transform, rasterizerState: rasterizerState);
+
+        Scene?.CollisionSystem?.Draw();
 
         Scene?.Draw();
         Scene?.PostDraw();
 
+        Renderer.EndDraw();
+
         GraphicsDevice.ScissorRectangle = rect;
 
-        Renderer.EndDraw();
         Renderer.BeginDrawUI();
 
         Scene?.DrawUI();
@@ -383,23 +392,5 @@ public class Main : Game
         AlreadyLoadedAvatars.Remove(cSteamID);
         AlreadyLoadedAvatars.Add(cSteamID, DefaultSteamProfile);
         return DefaultSteamProfile;
-    }
-
-    private static readonly List<string> missingAssets = [];
-
-    public static T LoadContent<T>(string assetName)
-    {
-        if(missingAssets.Contains(assetName)) return default;
-
-        try
-        {
-            return Instance.Content.Load<T>(assetName);
-        }
-        catch(Exception e)
-        {
-            Console.Error.WriteLine(e.GetType().FullName + $": The content file \"{assetName}\" was not found.");
-            missingAssets.Add(assetName);
-            return default;
-        }
     }
 }

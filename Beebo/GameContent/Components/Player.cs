@@ -189,7 +189,7 @@ public class Player : Actor
     void AddTexture(string path, int frameCount = 1)
     {
         const string texPath = "Images/Player/";
-        textures.Add(Main.LoadContent<Texture2D>(texPath + path));
+        textures.Add(ContentLoader.Load<Texture2D>(texPath + path));
         frameCounts.Add(frameCount);
     }
 
@@ -508,7 +508,7 @@ public class Player : Actor
                 velocity.Y = 0;
         });
 
-        if(Left < 0 || Right > Scene.Width || Top < 0 || Bottom > Scene.Height)
+        if(Top > Scene.Height + 16)
         {
             TopLeft = Point.Zero;
             velocity = Vector2.Zero;
@@ -1056,8 +1056,22 @@ public class Player : Actor
 
     private bool CheckLedgeGrab()
     {
-        var _w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift(inputDir, 0));
-        if(_w is not null)
+        Solid _s = null;
+        Rectangle _w = Rectangle.Empty;
+
+        if(Scene.CollisionSystem.SolidPlace(Hitbox.Shift(inputDir, 0)) is Solid solid)
+        {
+            _w = solid.Hitbox;
+            _s = solid;
+        }
+        else if(Scene.CollisionSystem.GetTile(new Point(Left + inputDir + (inputDir > 0 ? Width : 0), Top).Divide(CollisionSystem.TileSize)) != 0)
+        {
+            Point point = new(Facing < 0 ? Left - 1 : Right + 1, Top);
+            Point tilePos = MathUtil.Snap(point.ToVector2(), CollisionSystem.TileSize).ToPoint();
+            _w = new(tilePos, new(CollisionSystem.TileSize));
+        }
+
+        if(_w != Rectangle.Empty)
         {
             if (canLedgeGrab && ledgegrabTimer == 0 && !CheckColliding(Hitbox))
             {
@@ -1075,42 +1089,15 @@ public class Player : Actor
                         Entity.Y = _w.Top - bboxOffset.Y;
                         Entity.X = ((inputDir == 1) ? _w.Left - Width : _w.Right) - bboxOffset.X;
                         Facing = Math.Sign(_w.Left - Left);
-                        platformTarget = _w;
+
+                        platformTarget = _s;
 
                         return true;
                     }
                 }
             }
         }
-        else
-        {
-            if(Scene.CollisionSystem.TileMeeting(TopEdge.Shift(inputDir, 0), false))
-            {
-                Point point = new(Facing < 0 ? Left - 1 : Right + 1, Top);
-                Point tilePos = MathUtil.Snap(point.ToVector2(), CollisionSystem.TileSize).ToPoint();
-                Rectangle _w2 = new(tilePos, new(CollisionSystem.TileSize));
 
-                if(!CheckColliding(new((inputDir == 1) ? _w2.Left + 1 : _w2.Right - 1, _w2.Top - 1, 1, 1), true)
-                && !CheckColliding(new((inputDir == 1) ? _w2.Left - 2 : _w2.Right + 2, _w2.Top + 18, 1, 1), true))
-                {
-                    if (Math.Sign(Top - _w2.Top) <= 0 && !CheckColliding(new(Left, _w2.Top - 1, Width, Height), true) && !CheckColliding(Hitbox.Shift(0, 2), true))
-                    {
-                        wallslideTimer = 0;
-                        State = PlayerState.LedgeGrab;
-
-                        SetHitbox(MaskLedge, PivotLedge);
-                        textureIndex = TextureIndex.LedgeGrab;
-
-                        Entity.Y = _w2.Top - bboxOffset.Y;
-                        Entity.X = ((inputDir == 1) ? _w2.Left - Width : _w2.Right) - bboxOffset.X;
-                        Facing = Math.Sign(_w2.Left - Left);
-                        platformTarget = null;
-
-                        return true;
-                    }
-                }
-            }
-        }
         return false;
     }
 
@@ -1157,7 +1144,7 @@ public class Player : Actor
             if(JellyBackend.DebugEnabled)
             {
                 Renderer.SpriteBatch.DrawNineSlice(
-                    Main.LoadContent<Texture2D>("Images/Debug/tileOutline"),
+                    ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"),
                     new Rectangle((int)image.Position.X, (int)image.Position.Y, Width, Height),
                     null,
                     new Point(1),
@@ -1204,7 +1191,7 @@ public class Player : Actor
 
         #region Gun Shit Here
         {
-            var texture = Main.LoadContent<Texture2D>("Images/Player/gun");
+            var texture = ContentLoader.Load<Texture2D>("Images/Player/gun");
 
             int x = gunOffset.X;
             int y = gunOffset.Y;
@@ -1233,7 +1220,7 @@ public class Player : Actor
             if(platformTarget != null)
             {
                 Renderer.SpriteBatch.DrawNineSlice(
-                    Main.LoadContent<Texture2D>("Images/Debug/tileOutline"),
+                    ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"),
                     platformTarget.Hitbox,
                     null,
                     new Point(1),
@@ -1242,10 +1229,10 @@ public class Player : Actor
                 );
             }
 
-            Renderer.SpriteBatch.DrawNineSlice(Main.LoadContent<Texture2D>("Images/Debug/tileOutline"), Hitbox, null, new Point(1), new Point(1), Color.Red * 0.5f);
+            Renderer.SpriteBatch.DrawNineSlice(ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"), Hitbox, null, new Point(1), new Point(1), Color.Red * 0.5f);
 
             Renderer.SpriteBatch.DrawNineSlice(
-                Main.LoadContent<Texture2D>("Images/Debug/tileOutline"),
+                ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"),
                 new(Entity.Position - new Point(2, 2), new Point(4, 4)),
                 null,
                 new Point(1),
