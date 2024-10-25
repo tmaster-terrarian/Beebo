@@ -67,10 +67,6 @@ public class Main : Game
             throw new InvalidOperationException("You can't start the game more than once 4head");
         Instance = this;
 
-        #if DEBUG
-        JellyBackend.DebugEnabled = true;
-        #endif
-
         Renderer.ScreenSize = new Point(320, 180);
         _graphics = Renderer.GetDefaultGraphicsDeviceManager(this);
 

@@ -353,7 +353,7 @@ public class Player : Actor
                 {
                     velocity.X += moveSpeed * 0.8f * inputDir + (0.4f * -Facing);
 
-                    if(!CheckColliding(Hitbox.Shift(0, c is not null ? c.Top - Entity.Y : 0), c is null)) // if theres space jump as normal
+                    if(!CheckColliding(Hitbox.Shift(0, c is not null ? c.Top - Top : 0), c is null)) // if theres space jump as normal
                         velocity.Y -= 2.7f * (!InputMapping.Down.IsDown).ToInt32();
                     else // else displace the player first
                     {
@@ -668,7 +668,20 @@ public class Player : Actor
         gunOffset.Y = y;
 
         var vec = (Main.Camera.MousePositionInWorld - new Point(Entity.X + x * VisualFacing, Entity.Y + y)).ToVector2().SafeNormalize();
-        gunAngle = MathHelper.ToRadians(MathF.Round(MathHelper.ToDegrees(MathF.Atan2(vec.Y, vec.X)) / 10) * 10);
+        gunAngle = MathF.Atan2(vec.Y, vec.X);
+        if(!float.IsNormal(gunAngle)) gunAngle = 0;
+
+        if(State == PlayerState.Wallslide || State == PlayerState.LedgeGrab)
+        {
+            if(Facing == 1)
+            {
+                gunAngle = MathHelper.ToRadians(MathHelper.Clamp(MathHelper.ToDegrees(MathHelper.WrapAngle(gunAngle + MathF.PI)), -90, 90)) - MathF.PI;
+            }
+            else
+            {
+                gunAngle = MathHelper.ToRadians(MathHelper.Clamp(MathHelper.ToDegrees(gunAngle), -90, 90));
+            }
+        }
 
         recoil = MathHelper.Max(0, recoil - 1);
         if(InputMapping.PrimaryFire.IsDown && bulletDelay == 0)
@@ -692,11 +705,7 @@ public class Player : Actor
             //     damage = obj_player.damage
             // }
 
-            Scene.Entities.Add(new Entity(
-                new Point(
-                    Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)),
-                    Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle))
-                )) {
+            Scene.Entities.Add(new Entity(new(Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)), Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle)))) {
                     Components = {
                         new BulletProjectile {
                             Direction = gunAngle,
@@ -719,6 +728,23 @@ public class Player : Actor
             //     hsp = -other.image_yscale * random_range(1, 1.5)
             //     vsp = -1 + random_range(-0.2, 0.1)
             // }
+
+            int facing = VisualFacing * (State == PlayerState.Wallslide || State == PlayerState.LedgeGrab ? -1 : 1);
+
+            Scene.Entities.Add(new Entity(new(Entity.X + x * VisualFacing + (int)(4 * MathF.Cos(gunAngle)), Entity.Y + y - 1 + (int)(4 * MathF.Sin(gunAngle)))) {
+                Depth = Entity.Depth - 5,
+                Components = {
+                    new BulletCasing {
+                        Angle = MathHelper.ToRadians(MathF.Round(MathHelper.ToDegrees(gunAngle) / 10) * 10),
+                        ImageFacing = facing,
+                        Facing = facing,
+                        velocity = {
+                            X = -facing * (Random.Shared.NextSingle() * 0.5f + 1),
+                            Y = -1 + (Random.Shared.NextSingle() * 0.3f - 0.2f)
+                        }
+                    }
+                }
+            });
         }
 
         if(InputMapping.SecondaryFire.IsDown && bombDelay == 0)
@@ -741,13 +767,15 @@ public class Player : Actor
             //     if(mouse_check_button(mb_left) || gamepad_button_check(0, gp_shoulderrb)) event_perform(ev_other, ev_user2);
             // }
 
+            var angle = MathHelper.ToRadians(MathF.Round(MathHelper.ToDegrees(gunAngle) / 10) * 10);
+
             var bomb = new Entity(new Point(
-                Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)),
-                Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle))
+                Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(angle)),
+                Entity.Y + y - 1 + (int)(12 * MathF.Sin(angle))
             )) {
                 Components = {
                     new BombProjectile {
-                        velocity = new(2 * MathF.Cos(gunAngle) + velocity.X * 0.5f, 2 * MathF.Sin(gunAngle) + velocity.Y * 0.25f - 1),
+                        velocity = new(2 * MathF.Cos(angle) + velocity.X * 0.5f, 2 * MathF.Sin(angle) + velocity.Y * 0.25f - 1),
                         Owner = Entity.EntityID,
                         Damage = 1,
                         Team = Team.Player
@@ -755,9 +783,12 @@ public class Player : Actor
                 },
             };
 
-            if(InputMapping.PrimaryFire.IsDown) bomb.GetComponent<BombProjectile>().Explode();
-
             Scene.Entities.Add(bomb);
+
+            if(InputMapping.PrimaryFire.IsDown)
+            {
+                Scene.OnEndOfFrame += () => bomb.GetComponent<BombProjectile>().Explode();
+            }
         }
     }
 
@@ -1189,7 +1220,6 @@ public class Player : Actor
             );
         }
 
-        #region Gun Shit Here
         {
             var texture = ContentLoader.Load<Texture2D>("Images/Player/gun");
 
@@ -1198,22 +1228,23 @@ public class Player : Actor
 
             var gunSpriteEffects = (SpriteEffects)((((int)spriteEffects) << 1) & 2) ^ (flipGun ? SpriteEffects.FlipVertically : 0);
 
+            var angle = MathHelper.ToRadians(MathF.Round(MathHelper.ToDegrees(gunAngle) / 10) * 10);
+
             Renderer.SpriteBatch.Draw(
                 texture,
                 new Vector2(
-                    Entity.X + x * stretch * VisualFacing + -recoil * MathF.Cos(gunAngle),
-                    Entity.Y + y * squash + -recoil * MathF.Sin(gunAngle)
+                    Entity.X + x * stretch * VisualFacing + -recoil * MathF.Cos(angle),
+                    Entity.Y + y * squash + -recoil * MathF.Sin(angle)
                 ),
                 null,
                 Color.White,
-                gunAngle,
+                angle,
                 new Vector2(2, 8),
                 new Vector2(stretch, squash),
                 gunSpriteEffects,
                 0
             );
         }
-        #endregion
 
         if(JellyBackend.DebugEnabled)
         {

@@ -11,7 +11,7 @@ namespace Beebo.GameContent.Components;
 public class BombProjectile : Projectile
 {
     private int bounces;
-    private int maxBounces = 2;
+    private int bouncesMax = 1;
 
     private float frame;
 
@@ -19,14 +19,15 @@ public class BombProjectile : Projectile
     {
         Width = 4;
         Height = 4;
-        bboxOffset = new(-2, -2);
-        DestroyOnCollision = true;
+        DestroyOnCollision = false;
     }
 
     public override void Update()
     {
         frame += 0.125f;
         base.Update();
+
+        velocity.Y = MathUtil.Approach(velocity.Y, 20, 0.1f * Time.DeltaTime * 60);
 
         if(Center.Y > Scene.Height + 16)
         {
@@ -47,7 +48,7 @@ public class BombProjectile : Projectile
             Center.ToVector2(),
             drawFrame,
             Color.White,
-            0, new Vector2(2, 2),
+            0, new Vector2(8, 8),
             1, SpriteEffects.None,
             0
         );
@@ -55,7 +56,7 @@ public class BombProjectile : Projectile
 
     protected override void OnCollideX()
     {
-        if(bounces < maxBounces)
+        if(bounces < bouncesMax)
         {
             bounces++;
 
@@ -75,7 +76,7 @@ public class BombProjectile : Projectile
 
     protected override void OnCollideY()
     {
-        if(bounces < maxBounces && velocity.Y > 0)
+        if(bounces < bouncesMax && velocity.Y > 0)
         {
             bounces++;
 
@@ -101,7 +102,8 @@ public class BombProjectile : Projectile
     {
         Rectangle explosionHitbox = new Rectangle(Center - new Point(21, 36), new Point(46, 50));
 
-        Scene.Entities.ForeachWithComponent<Unit>(entity => {
+        foreach(var entity in Scene.Entities.FindAllWithComponent<Unit>())
+        {
             if(entity.GetComponent<Moveable>() is not Moveable moveable)
                 return;
 
@@ -113,6 +115,8 @@ public class BombProjectile : Projectile
                     Damage = Damage,
                 });
             }
-        });
+        }
+
+        Scene.Entities.Remove(Entity);
     }
 }
