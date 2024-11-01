@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -273,7 +273,7 @@ public class Main : Game
 
     private void SceneChanged(Scene oldScene, Scene newScene)
     {
-        Player ??= EntityRegistry.GetDefStatic("Beebo").Instantiate();
+        Player ??= EntityRegistry.GetDefStatic("PlayerBeebo").Instantiate();
 
         if(newScene == null)
         {

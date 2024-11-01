@@ -30,7 +30,7 @@ public class ContentLoader : ContentProvider
             loadedTextures.Add(pathName, texture);
             return texture;
         }
-        catch(System.Exception e)
+        catch(Exception e)
         {
             pathsThatDontWork.Add(pathName);
             Main.Logger.LogError(e);
@@ -47,7 +47,7 @@ public class ContentLoader : ContentProvider
 
     public static T Load<T>(string assetName)
     {
-        if(missingAssets.Contains(assetName)) return default;
+        if(pathsThatDontWork.Contains(assetName)) return default;
 
         try
         {
@@ -56,7 +56,7 @@ public class ContentLoader : ContentProvider
         catch(Exception e)
         {
             Console.Error.WriteLine(e.GetType().FullName + $": The content file \"{assetName}\" was not found.");
-            missingAssets.Add(assetName);
+            pathsThatDontWork.Add(assetName);
             return default;
         }
     }

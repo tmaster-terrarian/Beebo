@@ -73,8 +73,8 @@ public class Player : Actor
     private TextureIndex textureIndex;
     private float frame;
 
-    private float squash = 1;
-    private float stretch = 1;
+    private float squash = 1; // vertical
+    private float stretch = 1; // horizontal
 
     private float recoil;
     private float gunAngle;
@@ -97,6 +97,8 @@ public class Player : Actor
     private Solid platformTarget = null;
 
     public float Lookup { get; private set; }
+
+    public float CurrentMoveSpeed => moveSpeed;
 
     class AfterImage
     {
@@ -449,7 +451,7 @@ public class Player : Actor
             {
                 velocity.X = -velocity.X * 0.9f;
             }
-            else for(int j = 0; j < MathUtil.RoundToInt(MathHelper.Max(Time.DeltaTime, 1)); j++)
+            else for(int j = 0; j < MathUtil.RoundToInt(MathHelper.Max(Time.DeltaTime * 60, 1)); j++)
             {
                 if(inputDir != 0 && !CheckColliding(Hitbox.Shift(inputDir, -2)))
                 {
@@ -683,8 +685,10 @@ public class Player : Actor
             }
         }
 
+        Entity bullet = null;
+
         recoil = MathHelper.Max(0, recoil - 1);
-        if(InputMapping.PrimaryFire.IsDown && bulletDelay == 0)
+        if(InputMapping.PrimaryFire.IsDown && bulletDelay == 0 && !(InputMapping.SecondaryFire.IsDown && bombDelay == 0))
         {
             Main.Camera.AddShake(1, 5);
             recoil = 2;
@@ -705,7 +709,7 @@ public class Player : Actor
             //     damage = obj_player.damage
             // }
 
-            Scene.Entities.Add(new Entity(new(Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)), Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle)))) {
+            Scene.Entities.Add(bullet = new Entity(new(Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)), Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle)))) {
                     Components = {
                         new BulletProjectile {
                             Direction = gunAngle,
@@ -770,8 +774,8 @@ public class Player : Actor
             var angle = MathHelper.ToRadians(MathF.Round(MathHelper.ToDegrees(gunAngle) / 10) * 10);
 
             var bomb = new Entity(new Point(
-                Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(angle)),
-                Entity.Y + y - 1 + (int)(12 * MathF.Sin(angle))
+                Entity.X + x * VisualFacing + (int)(14 * MathF.Cos(angle)),
+                Entity.Y + y - 1 + (int)(14 * MathF.Sin(angle))
             )) {
                 Components = {
                     new BombProjectile {
@@ -787,7 +791,16 @@ public class Player : Actor
 
             if(InputMapping.PrimaryFire.IsDown)
             {
-                Scene.OnEndOfFrame += () => bomb.GetComponent<BombProjectile>().Explode();
+                bulletDelay = baseBulletDelay + 3;
+
+                Scene.OnEndOfFrame += () => {
+                    if(bullet != null)
+                    {
+                        Scene?.Entities.Remove(bullet);
+                    }
+
+                    bomb?.GetComponent<BombProjectile>().Explode(true);
+                };
             }
         }
     }
@@ -1174,17 +1187,17 @@ public class Player : Actor
 
             if(JellyBackend.DebugEnabled)
             {
-                Renderer.SpriteBatch.DrawNineSlice(
-                    ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"),
-                    new Rectangle((int)image.Position.X, (int)image.Position.Y, Width, Height),
-                    null,
-                    new Point(1),
-                    new Point(1),
-                    Color.Blue * 0.75f,
-                    Vector2.Zero,
-                    SpriteEffects.None,
-                    0
-                );
+                // Renderer.SpriteBatch.DrawNineSlice(
+                //     ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"),
+                //     new Rectangle((int)image.Position.X - Width / 2, (int)image.Position.Y - Height, Width, Height),
+                //     null,
+                //     new Point(1),
+                //     new Point(1),
+                //     Color.Blue * 0.75f,
+                //     Vector2.Zero,
+                //     SpriteEffects.None,
+                //     0
+                // );
             }
 
             Renderer.SpriteBatch.Draw(

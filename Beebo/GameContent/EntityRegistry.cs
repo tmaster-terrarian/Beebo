@@ -9,7 +9,7 @@ public class EntityRegistry : Registry<EntityDef>
     public override void Init()
     {
         Register(new() {
-            Name = "Beebo",
+            Name = "PlayerBeebo",
             Entity = new() {
                 Depth = 50,
                 Tag = (uint)EntityTags.Player,

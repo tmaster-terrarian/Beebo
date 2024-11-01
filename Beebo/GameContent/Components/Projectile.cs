@@ -23,6 +23,8 @@ public class Projectile : Actor
 
     private readonly List<long> piercedEntities = [];
 
+    public float GravityScale { get; set; } = 1;
+
     private bool dead;
 
     public override void OnCreated()
@@ -49,7 +51,7 @@ public class Projectile : Actor
 
         if(EffectedByGravity && !OnGround)
         {
-            velocity.Y = MathUtil.Approach(velocity.Y, 20, 0.2f * Time.DeltaTime);
+            velocity.Y = MathUtil.Approach(velocity.Y, 20, 0.2f * GravityScale * (Time.DeltaTime * 60f));
         }
 
         MoveX(velocity.X, HandleCollisionX);

@@ -10,7 +10,7 @@ namespace Beebo.GameContent.Components;
 
 public class BulletCasing : Actor
 {
-    float alpha = 10;
+    float alpha = 12;
 
     float finalAngle = 0;
 
@@ -54,9 +54,9 @@ public class BulletCasing : Actor
             if(!CheckColliding(BottomEdge.Shift(0, 1)))
             {
                 done = false;
-                alpha = 5;
+                alpha = Random.Shared.Next(5, 9);
                 Facing = Random.Shared.NextSingle() >= 0.5f ? -1 : 1;
-                return;
+                bouncesMax = Random.Shared.Next(3); 
             }
             else
             {
@@ -68,18 +68,18 @@ public class BulletCasing : Actor
                 {
                     velocity = c.velocity;
                 }
+
+                Angle = MathUtil.Approach(Angle, finalAngle, MathHelper.ToRadians(20f * Time.DeltaTime * 60));
+
+                alpha = MathUtil.Approach(alpha, 0, 0.2f * Time.DeltaTime * 60);
+
+                if(alpha == 0)
+                {
+                    Scene.Entities.Remove(Entity);
+                }
+
+                return;
             }
-
-            Angle = MathUtil.Approach(Angle, finalAngle, MathHelper.ToRadians(20f * Time.DeltaTime * 60));
-
-            alpha = MathUtil.Approach(alpha, 0, 0.2f * Time.DeltaTime * 60);
-
-            if(alpha == 0)
-            {
-                Scene.Entities.Remove(Entity);
-            }
-
-            return;
         }
 
         velocity.Y = MathUtil.Approach(velocity.Y, 20, gravity * Time.DeltaTime * 60);
