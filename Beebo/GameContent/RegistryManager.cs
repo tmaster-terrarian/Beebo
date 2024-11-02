@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -8,15 +11,6 @@ namespace Beebo.GameContent;
 
 public static class RegistryManager
 {
-    public static class AllRegistries
-    {
-        public static ComponentTypeRegistry ComponentRegistry { get; } = new();
-
-        public static EntityRegistry EntityRegistry { get; } = new();
-
-        public static SceneRegistry SceneRegistry { get; } = new();
-    }
-
     public static JsonSerializerOptions SerializerOptions => new() {
         Converters = {
             new JsonStringEnumConverter(),
@@ -33,15 +27,19 @@ public static class RegistryManager
 
     public static void Initialize()
     {
-        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-
-        if(assembly is not null)
-        {
+        if(Assembly.GetExecutingAssembly() is Assembly assembly)
             ComponentTypeRegistry.ComponentTypeResolver.GetAllDerivedTypesFromAssembly(assembly);
-        }
 
-        Registries.Add(AllRegistries.ComponentRegistry);
-        Registries.Add(AllRegistries.EntityRegistry);
-        Registries.Add(AllRegistries.SceneRegistry);
+        Registries.Add(new ComponentTypeRegistry());
+        Registries.Add(new EntityRegistry());
+        Registries.Add(new SceneRegistry());
+        Registries.Add(new AudioRegistry());
+
+        RegistriesInit();
+    }
+
+    static void RegistriesInit()
+    {
+        
     }
 }

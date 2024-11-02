@@ -28,11 +28,31 @@
 				"TextureFormat": "Color"
 			}
 		},
-		"audio": {
+		"audioWav": {
 			"path": "Audio/*.wav",
 			"recursive": "True",
 			"action": "build",
 			"importer": "WavImporter",
+			"processor": "SoundEffectProcessor",
+			"processorParam": {
+				"Quality": "Best"
+			}
+		},
+		"audioMp3": {
+			"path": "Audio/*.mp3",
+			"recursive": "True",
+			"action": "build",
+			"importer": "Mp3Importer",
+			"processor": "SoundEffectProcessor",
+			"processorParam": {
+				"Quality": "Best"
+			}
+		},
+		"audioOgg": {
+			"path": "Audio/*.ogg",
+			"recursive": "True",
+			"action": "build",
+			"importer": "OggImporter",
 			"processor": "SoundEffectProcessor",
 			"processorParam": {
 				"Quality": "Best"

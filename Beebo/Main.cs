@@ -19,6 +19,7 @@ using Jelly.IO;
 
 using Steamworks;
 using Beebo.GameContent.Components;
+using Microsoft.Xna.Framework.Audio;
 
 namespace Beebo;
 
@@ -31,6 +32,8 @@ public class Main : Game
     private static bool steamFailed;
     private static Camera camera;
     private static Scene Scene => SceneManager.ActiveScene;
+
+    private static bool loadingNewScene;
 
     public static Logger Logger { get; } = new("Main");
 
@@ -72,6 +75,8 @@ public class Main : Game
 
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
+
+        SoundEffect.Initialize();
 
         if(Program.UseSteamworks)
         {
@@ -134,6 +139,9 @@ public class Main : Game
         Renderer.LoadContent(Content);
 
         MasterRenderer.LoadContent(Content);
+
+        AudioRegistry.LoadContent(Content);
+        SoundEffect.MasterVolume = 0.5f;
 
         DefaultSteamProfile = Content.Load<Texture2D>("Images/UI/Multiplayer/DefaultProfile");
 
@@ -213,10 +221,15 @@ public class Main : Game
                 Scene?.PostUpdate();
             }
         }
-
+ 
         Chat.Update(gameTime);
 
         camera.Update();
+
+        if(loadingNewScene)
+        {
+            loadingNewScene = false;
+        }
 
         JellyBackend.PostUpdate();
 
@@ -308,6 +321,8 @@ public class Main : Game
             return;
 
         SceneManager.ActiveScene = Registries.Get<SceneRegistry>().GetDef(name).Build();
+
+        loadingNewScene = true;
 
         // networking stuff
     }

@@ -4,6 +4,7 @@ using Jelly.Components;
 using Jelly.Graphics;
 using Jelly.Utilities;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace Beebo.GameContent.Components;
@@ -15,6 +16,8 @@ public class BombProjectile : Projectile
 
     private float frame;
 
+    private SoundEffectInstance throwSound = null;
+
     public override void OnCreated()
     {
         Width = 4;
@@ -22,6 +25,8 @@ public class BombProjectile : Projectile
         DestroyOnCollision = false;
         GravityScale = 0.5f;
         EffectedByGravity = true;
+
+        throwSound = AudioRegistry.GetDefStatic("bomb_throw").Play();
     }
 
     public override void Update()
@@ -75,6 +80,8 @@ public class BombProjectile : Projectile
         {
             bounces++;
 
+            AudioRegistry.GetDefStatic("bomb_bounce").Play();
+
             var w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift(MathUtil.CeilToInt(velocity.X), 0));
 
             velocity.X *= -0.75f;
@@ -94,6 +101,8 @@ public class BombProjectile : Projectile
         if(bounces < bouncesMax && velocity.Y > 0)
         {
             bounces++;
+
+            AudioRegistry.GetDefStatic("bomb_bounce").Play();
 
             var w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift(MathUtil.CeilToInt(velocity.X), 0));
 
@@ -135,6 +144,9 @@ public class BombProjectile : Projectile
         });
 
         int dmg = big ? Damage * 2 : Damage;
+
+        throwSound?.Stop();
+        AudioRegistry.GetDefStatic("bomb_explosion").Play();
 
         foreach(var entity in Scene.Entities.FindAllWithComponent<Moveable>())
         {

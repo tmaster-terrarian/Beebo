@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
@@ -67,6 +69,8 @@ public class Player : Actor
     private bool fxTrail;
     private int fxTrailCounter;
     private readonly List<AfterImage> afterImages = [];
+
+    private readonly Dictionary<string, AudioDef> sounds = [];
 
     private readonly List<Texture2D> textures = [];
     private readonly List<int> frameCounts = [];
@@ -185,6 +189,12 @@ public class Player : Actor
         AddTexture("ledgegrab");
         AddTexture("ledgeclimb", 3);
 
+        AddSound("jump");
+        AddSound("wall_jump");
+        AddSound("land");
+        AddSound("shoot");
+        AddSound("throw_bomb");
+
         SetHitbox(MaskNormal, PivotNormal);
     }
 
@@ -193,6 +203,12 @@ public class Player : Actor
         const string texPath = "Images/Player/";
         textures.Add(ContentLoader.Load<Texture2D>(texPath + path));
         frameCounts.Add(frameCount);
+    }
+
+    void AddSound(string path)
+    {
+        const string texPath = "player_";
+        sounds.Add(path, AudioRegistry.GetDefStatic(texPath + path));
     }
 
     void SetHitbox(Rectangle mask, Point pivot)
@@ -258,6 +274,7 @@ public class Player : Actor
             {
                 platformTarget = null;
                 // var s = null;
+                SoundEffectInstance s = null;
                 if(duck <= 0)
                 {
                     State = PlayerState.Normal;
@@ -273,7 +290,7 @@ public class Player : Actor
                             velocity.Y = c.velocity.Y;
                     }
                     velocity.Y = jumpSpeed;
-                    // s = _audio_play_sound(sn_jump, 0, false);
+                    s = sounds["jump"].Play();
                 }
                 else if(!CheckColliding(Hitbox.Shift(0, -2)))
                 {
@@ -288,11 +305,11 @@ public class Player : Actor
                             velocity.Y = c.velocity.Y;
                     }
                     velocity.Y += jumpSpeed / 2;
-                    // s = _audio_play_sound(sn_jump, 0, false);
+                    s = sounds["jump"].Play();
                 }
                 else
                 {
-                    // s = _audio_play_sound(sn_jump, 0, false);
+                    s = sounds["jump"].Play();
                 }
 
                 if(!OnGround)
@@ -306,8 +323,8 @@ public class Player : Actor
                         var w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift((int)moveSpeed, 0));
                         if(w is not null)
                             velocity.X += w.velocity.X / 2;
-                        // audio_stop_sound(s);
-                        // _audio_play_sound(sn_walljump, 0, false);
+                        s?.Stop();
+                        sounds["wall_jump"].Play();
                     }
                     else if(CheckColliding(Hitbox.Shift((int)-moveSpeed, 0), true) && canWalljump)
                     {
@@ -318,8 +335,8 @@ public class Player : Actor
                         var w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift((int)-moveSpeed, 0));
                         if(w is not null)
                             velocity.X += w.velocity.X / 2;
-                        // audio_stop_sound(s);
-                        // _audio_play_sound(sn_walljump, 0, false);
+                        s?.Stop();
+                        sounds["wall_jump"].Play();
                     }
                     else if(jumpBuffer > 0 && velocity.Y > 0)
                     {
@@ -366,7 +383,7 @@ public class Player : Actor
                         textureIndex = TextureIndex.Jump;
                         frame = 0;
                     }
-                    // _audio_play_sound(sn_walljump, 0, false);
+                    sounds["wall_jump"].Play();
                 }
                 else // otherwise just hop off
                 {
@@ -376,7 +393,7 @@ public class Player : Actor
                     velocity.Y -= 2.7f * (!InputMapping.Down.IsDown).ToInt32();
                     textureIndex = TextureIndex.Jump;
                     frame = 0;
-                    // _audio_play_sound(sn_walljump, 0, false);
+                    sounds["wall_jump"].Play();
                 }
                 State = PlayerState.Normal;
             }
@@ -392,7 +409,7 @@ public class Player : Actor
                     var w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift((int)moveSpeed, 0));
                     if(w is not null)
                         velocity.X += w.velocity.X / 2;
-                    // _audio_play_sound(sn_walljump, 0, false);
+                    sounds["wall_jump"].Play();
                 }
                 else if(CheckColliding(Hitbox.Shift((int)-moveSpeed, 0), true))
                 {
@@ -404,7 +421,7 @@ public class Player : Actor
                     var w = Scene.CollisionSystem.SolidPlace(Hitbox.Shift((int)-moveSpeed, 0));
                     if(w is not null)
                         velocity.X += w.velocity.X / 2;
-                    // _audio_play_sound(sn_walljump, 0, false);
+                    sounds["wall_jump"].Play();
                 }
             }
         }
@@ -490,7 +507,7 @@ public class Player : Actor
             }
             if (velocity.Y > 0.4f)
             {
-                // _audio_play_sound(sn_player_land, 0, false);
+                sounds["land"].Play();
                 squash = 0.9f;
                 stretch = 1.4f;
             }
@@ -686,6 +703,7 @@ public class Player : Actor
         }
 
         Entity bullet = null;
+        SoundEffectInstance shootSound = null;
 
         recoil = MathHelper.Max(0, recoil - 1);
         if(InputMapping.PrimaryFire.IsDown && bulletDelay == 0 && !(InputMapping.SecondaryFire.IsDown && bombDelay == 0))
@@ -693,6 +711,8 @@ public class Player : Actor
             Main.Camera.AddShake(1, 5);
             recoil = 2;
             bulletDelay = baseBulletDelay;
+
+            shootSound = sounds["shoot"].Play();
 
             // spawn boolets
 
@@ -751,13 +771,26 @@ public class Player : Actor
             });
         }
 
+        if(InputMapping.SecondaryFire.Pressed && bombDelay > 0)
+        {
+            foreach(var e in Scene.Entities.FindAllWithComponent<BombProjectile>())
+            {
+                e.GetComponent<BombProjectile>().Explode();
+            }
+        }
+
         if(InputMapping.SecondaryFire.IsDown && bombDelay == 0)
         {
-            // kill bombas
+            foreach(var e in Scene.Entities.FindAllWithComponent<BombProjectile>())
+            {
+                e.GetComponent<BombProjectile>().Explode();
+            }
 
             Main.Camera.AddShake(2, 10);
             recoil = 4;
             bombDelay = baseBombDelay;
+
+            sounds["throw_bomb"].Play();
 
             // spawn bombas
 
@@ -797,6 +830,7 @@ public class Player : Actor
                     if(bullet != null)
                     {
                         Scene?.Entities.Remove(bullet);
+                        shootSound?.Stop();
                     }
 
                     bomb?.GetComponent<BombProjectile>().Explode(true);
