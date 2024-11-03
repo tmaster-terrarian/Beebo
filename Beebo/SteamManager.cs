@@ -14,7 +14,7 @@ public static class SteamManager
 
     public static Logger Logger { get; } = new("Steamworks.NET");
 
-    public static bool IsSteamRunning { get; set; } = false;
+    public static bool IsSteamRunning { get; internal set; } = false;
 
     public static bool Init(bool server = false)
     {
@@ -44,16 +44,14 @@ public static class SteamManager
             return false;
         }
 
-        IsSteamRunning = true;
-
         Initialize();
 
         {
-            Logger.LogInfo("Steam AppInstallDir: " + SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260) + " " + folder);
-            Logger.LogInfo("ProgramPath: " + Main.ProgramPath.Length + " " + Main.ProgramPath);
+            Logger.LogInfo($"Steam AppInstallDir: {SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260)} {folder}");
+            Logger.LogInfo($"ProgramPath: {Main.ProgramPath.Length + 1} {Main.ProgramPath}");
         }
 
-        return true;
+        return IsSteamRunning = true;
     }
 
     public static void Cleanup()

@@ -18,6 +18,8 @@ public class BombProjectile : Projectile
 
     private SoundEffectInstance throwSound = null;
 
+    private bool exploded;
+
     public override void OnCreated()
     {
         Width = 4;
@@ -60,7 +62,7 @@ public class BombProjectile : Projectile
         while(frame > 2)
             frame -= 2;
 
-        var texture = ContentLoader.Load<Texture2D>("Images/Entities/bomb");
+        var texture = ContentLoader.LoadTexture("Images/Entities/bomb");
         Rectangle drawFrame = GraphicsUtil.GetFrameInStrip(texture, frame, 2);
 
         Renderer.SpriteBatch.Draw(
@@ -124,6 +126,11 @@ public class BombProjectile : Projectile
 
     public void Explode(bool big = false)
     {
+        if(exploded)
+            return;
+
+        exploded = true;
+
         Rectangle explosionHitbox = big
         ? new Rectangle(
             Center - new Point(28, 48),
@@ -144,6 +151,8 @@ public class BombProjectile : Projectile
         });
 
         int dmg = big ? Damage * 2 : Damage;
+
+        Main.Camera.SetShake(big ? 6 : 4, big ? 60 : 40);
 
         throwSound?.Stop();
         AudioRegistry.GetDefStatic("bomb_explosion").Play();
@@ -218,6 +227,11 @@ public class BombProjectile : Projectile
                         player.velocity.Y += 2 * boostY;
                 }
             }
+        }
+
+        if(big)
+        {
+            Main.FreezeTimer = 0.1f;
         }
 
         Scene.Entities.Remove(Entity);

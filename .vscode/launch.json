@@ -12,7 +12,9 @@
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/Beebo/bin/Debug/net8.0/Beebo.dll",
             "args": [
-                "--nologo"
+                "--nologo",
+                "--",
+                "-noSteam"
             ],
             "cwd": "${workspaceFolder}/Beebo",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console

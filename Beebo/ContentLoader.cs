@@ -45,8 +45,13 @@ public class ContentLoader : ContentProvider
         _content = content;
     }
 
-    public static T Load<T>(string assetName)
+    public static T? Load<T>(string assetName) where T : class
     {
+        if(typeof(T) == typeof(Texture2D) || typeof(T).IsSubclassOf(typeof(Texture2D)))
+        {
+            return LoadTexture(assetName) as T;
+        }
+
         if(pathsThatDontWork.Contains(assetName)) return default;
 
         try
@@ -55,9 +60,26 @@ public class ContentLoader : ContentProvider
         }
         catch(Exception e)
         {
+
             Console.Error.WriteLine(e.GetType().FullName + $": The content file \"{assetName}\" was not found.");
             pathsThatDontWork.Add(assetName);
             return default;
+        }
+    }
+
+    public static Texture2D? LoadTexture(string assetName)
+    {
+        if(pathsThatDontWork.Contains(assetName)) return null;
+
+        try
+        {
+            return _content.Load<Texture2D>(assetName);
+        }
+        catch(Exception e)
+        {
+            Console.Error.WriteLine(e.GetType().FullName + $": The content file \"{assetName}\" was not found.");
+            pathsThatDontWork.Add(assetName);
+            return null;
         }
     }
 }

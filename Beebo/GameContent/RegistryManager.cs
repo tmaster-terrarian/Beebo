@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -35,11 +33,6 @@ public static class RegistryManager
         Registries.Add(new SceneRegistry());
         Registries.Add(new AudioRegistry());
 
-        RegistriesInit();
-    }
-
-    static void RegistriesInit()
-    {
-        
+        ModLoaderHooks.RegistriesInit();
     }
 }

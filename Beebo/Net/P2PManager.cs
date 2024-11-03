@@ -10,14 +10,7 @@ namespace Beebo.Net;
 
 public static class P2PManager
 {
-    private static Callback<P2PSessionRequest_t> Callback_P2PSessionRequest;
-    private static Callback<LobbyCreated_t> Callback_lobbyCreated;
-    private static Callback<LobbyMatchList_t> Callback_lobbyList;
-    private static Callback<LobbyEnter_t> Callback_lobbyEnter;
-    private static Callback<LobbyDataUpdate_t> Callback_lobbyDataUpdate;
-    private static Callback<LobbyChatUpdate_t> Callback_lobbyChatUpdate;
     private static Callback<PersonaStateChange_t> Callback_personaStateChange;
-    private static Callback<GameLobbyJoinRequested_t> Callback_lobbyJoinRequested;
 
     public static bool InLobby { get; private set; }
     public static CSteamID CurrentLobby { get; private set; }
@@ -29,14 +22,7 @@ public static class P2PManager
 
     public static void InitializeCallbacks()
     {
-        Callback_P2PSessionRequest = Callback<P2PSessionRequest_t>.Create(OnNewConnection);
-        Callback_lobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
-        Callback_lobbyList = Callback<LobbyMatchList_t>.Create(OnGetLobbiesList);
-        Callback_lobbyEnter = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
-        Callback_lobbyDataUpdate = Callback<LobbyDataUpdate_t>.Create(OnGetLobbyInfo);
-        Callback_lobbyChatUpdate = Callback<LobbyChatUpdate_t>.Create(OnLobbyChatUpdate);
         Callback_personaStateChange = Callback<PersonaStateChange_t>.Create(OnPersonaStateChange);
-        Callback_lobbyJoinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
     }
 
     public static void ReadAvailablePackets()

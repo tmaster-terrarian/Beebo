@@ -36,7 +36,7 @@ public class ExplosionEffect : Component
 
     public override void OnCreated()
     {
-        texture = ContentLoader.Load<Texture2D>("Images/Entities/explosion");
+        texture = ContentLoader.LoadTexture("Images/Entities/explosion");
         Entity.Depth = 40;
     }
 

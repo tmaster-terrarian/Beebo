@@ -18,14 +18,16 @@ public sealed class AudioDef : RegistryEntry
 
     public SoundEffectInstance Play(bool loopPlayback = false, float? volume = null, float? pitch = null, float? pan = null)
     {
-        var instance = SoundEffect.CreateInstance();
-        instance.IsLooped = loopPlayback || IsLooped;
-        instance.Volume = (volume ?? 1) * Volume;
-        instance.Pitch = pitch ?? Pitch;
-        instance.Pan = pan ?? Pan;
-        instance.Play();
+        // var instance = SoundEffect.CreateInstance();
+        // instance.IsLooped = loopPlayback || IsLooped;
+        // instance.Volume = (volume ?? 1) * Volume;
+        // instance.Pitch = pitch ?? Pitch;
+        // instance.Pan = pan ?? Pan;
+        // instance.Play();
 
-        return instance;
+        // return instance;
+
+        return AudioManager.Play(SoundEffect, loopPlayback || IsLooped, (volume ?? 1) * Volume, pitch ?? Pitch, pan ?? Pan);
     }
 }
 

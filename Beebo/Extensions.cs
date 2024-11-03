@@ -43,7 +43,7 @@ public static class Extensions
                 if(tile == 0)
                     continue;
 
-                var tex = ContentLoader.Load<Texture2D>("Images/Level/wall");
+                var tex = ContentLoader.LoadTexture("Images/Level/wall");
                 if(tex == null)
                     continue;
 

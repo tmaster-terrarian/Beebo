@@ -33,7 +33,6 @@ public class Player : Actor
 
     private PlayerState _state = PlayerState.Normal; // please do NOT touch this thx
     private bool _stateJustChanged;
-    private int stateTimer;
 
     private readonly float gravity = 0.2f;
     private readonly float baseMoveSpeed = 2;
@@ -146,7 +145,6 @@ public class Player : Actor
             if(_state != value)
             {
                 _stateJustChanged = true;
-                stateTimer = 0;
 
                 OnStateExit(_state);
                 OnStateEnter(value);
@@ -201,7 +199,7 @@ public class Player : Actor
     void AddTexture(string path, int frameCount = 1)
     {
         const string texPath = "Images/Player/";
-        textures.Add(ContentLoader.Load<Texture2D>(texPath + path));
+        textures.Add(ContentLoader.LoadTexture(texPath + path));
         frameCounts.Add(frameCount);
     }
 
@@ -366,7 +364,6 @@ public class Player : Actor
                 }
 
                 SetHitbox(MaskNormal, PivotNormal);
-                stateTimer = 0;
 
                 if(inputDir != 0) // if input then jump off with some horizontal speed
                 {
@@ -708,7 +705,7 @@ public class Player : Actor
         recoil = MathHelper.Max(0, recoil - 1);
         if(InputMapping.PrimaryFire.IsDown && bulletDelay == 0 && !(InputMapping.SecondaryFire.IsDown && bombDelay == 0))
         {
-            Main.Camera.AddShake(1, 5);
+            Main.Camera.SetShake(1, 5);
             recoil = 2;
             bulletDelay = baseBulletDelay;
 
@@ -786,7 +783,7 @@ public class Player : Actor
                 e.GetComponent<BombProjectile>().Explode();
             }
 
-            Main.Camera.AddShake(2, 10);
+            Main.Camera.SetShake(2, 10);
             recoil = 4;
             bombDelay = baseBombDelay;
 
@@ -1222,7 +1219,7 @@ public class Player : Actor
             if(JellyBackend.DebugEnabled)
             {
                 // Renderer.SpriteBatch.DrawNineSlice(
-                //     ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"),
+                //     ContentLoader.LoadTexture("Images/Debug/tileOutline"),
                 //     new Rectangle((int)image.Position.X - Width / 2, (int)image.Position.Y - Height, Width, Height),
                 //     null,
                 //     new Point(1),
@@ -1268,7 +1265,7 @@ public class Player : Actor
         }
 
         {
-            var texture = ContentLoader.Load<Texture2D>("Images/Player/gun");
+            var texture = ContentLoader.LoadTexture("Images/Player/gun");
 
             int x = gunOffset.X;
             int y = gunOffset.Y;
@@ -1298,7 +1295,7 @@ public class Player : Actor
             if(platformTarget != null)
             {
                 Renderer.SpriteBatch.DrawNineSlice(
-                    ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"),
+                    ContentLoader.LoadTexture("Images/Debug/tileOutline"),
                     platformTarget.Hitbox,
                     null,
                     new Point(1),
@@ -1307,10 +1304,10 @@ public class Player : Actor
                 );
             }
 
-            Renderer.SpriteBatch.DrawNineSlice(ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"), Hitbox, null, new Point(1), new Point(1), Color.Red * 0.5f);
+            Renderer.SpriteBatch.DrawNineSlice(ContentLoader.LoadTexture("Images/Debug/tileOutline"), Hitbox, null, new Point(1), new Point(1), Color.Red * 0.5f);
 
             Renderer.SpriteBatch.DrawNineSlice(
-                ContentLoader.Load<Texture2D>("Images/Debug/tileOutline"),
+                ContentLoader.LoadTexture("Images/Debug/tileOutline"),
                 new(Entity.Position - new Point(2, 2), new Point(4, 4)),
                 null,
                 new Point(1),

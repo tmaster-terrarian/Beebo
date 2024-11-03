@@ -24,7 +24,7 @@ public static class BeeboImGuiRenderer
 
     public static bool Enabled { get => enabled; set => enabled = value; }
 
-    internal static StringWriter ConsoleLines { get; } = new();
+    internal static StringWriter ConsoleOutput { get; } = new();
 
     internal static float scroll = 0;
 
@@ -32,7 +32,7 @@ public static class BeeboImGuiRenderer
     {
         GuiRenderer = new(game);
 
-        ConsoleLines.NewLine = "\n";
+        ConsoleOutput.NewLine = "\n";
     }
 
     public static void LoadContent(ContentManager content)
@@ -145,7 +145,7 @@ public static class BeeboImGuiRenderer
 
             if(ImGui.BeginChild("Scrolling", default, ImGuiChildFlags.Border))
             {
-                foreach(var str in ConsoleLines.ToString().Split("\n"))
+                foreach(var str in ConsoleOutput.ToString().Split("\n"))
                     ImGui.Text(str);
 
                 if(ImGui.GetScrollY() != scroll && scroll != -1)

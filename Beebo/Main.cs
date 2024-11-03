@@ -101,7 +101,7 @@ public class Main : Game
     {
         Logger.LogInfo("Entering main loop");
 
-        Renderer.PixelScale = (GraphicsDevice.Adapter.CurrentDisplayMode.Width / Renderer.ScreenSize.X) - 1;
+        Renderer.PixelScale = GraphicsDevice.Adapter.CurrentDisplayMode.Width / Renderer.ScreenSize.X;
 
         _graphics.PreferredBackBufferWidth = Renderer.ScreenSize.X * Renderer.PixelScale;
         _graphics.PreferredBackBufferHeight = Renderer.ScreenSize.Y * Renderer.PixelScale;
@@ -109,27 +109,35 @@ public class Main : Game
         Renderer.Initialize(_graphics, GraphicsDevice, Window);
 
         camera = new Camera();
-        Camera.SetShake(0, 1); // TODO: remove line after updating Jelly to 0.1.0-beta.8
 
         if(Program.UseSteamworks)
         {
-            if(!steamFailed && SteamManager.Init(false))
+            try
             {
-                Exiting += Game_Exiting;
+                if(!steamFailed && SteamManager.Init(false))
+                {
+                    Exiting += Game_Exiting;
+                }
+            }
+            catch(Exception e)
+            {
+                SteamManager.Logger.LogError($"Error initializing Steamworks: {e}");
             }
         }
 
-        RegistryManager.Initialize();
-
-        JellyBackend.Initialize(new ContentLoader(Content));
+        LocalizationManager.CurrentLanguage = "en-us";
 
         CommandManager.Initialize();
-
-        LocalizationManager.CurrentLanguage = "en-us";
 
         BeeboImGuiRenderer.Initialize(this);
 
         SceneManager.ActiveSceneChanged += SceneChanged;
+
+        ModLoaderHooks.Initialize();
+
+        RegistryManager.Initialize();
+
+        JellyBackend.Initialize(new ContentLoader(Content));
 
         base.Initialize();
     }

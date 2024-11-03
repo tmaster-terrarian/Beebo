@@ -35,7 +35,7 @@ public class BulletCasing : Actor
     public override void OnCreated()
     {
         bouncesMax = Random.Shared.Next(3);
-        texture = ContentLoader.Load<Texture2D>("Images/Entities/casing");
+        texture = ContentLoader.LoadTexture("Images/Entities/casing");
 
         Width = 2;
         Height = 2;
@@ -114,7 +114,7 @@ public class BulletCasing : Actor
     public override void Draw()
     {
         Renderer.SpriteBatch.Draw(
-            ContentLoader.Load<Texture2D>("Images/Entities/casing"),
+            ContentLoader.LoadTexture("Images/Entities/casing"),
             Center.ToVector2(),
             null,
             Color.White * alpha,
