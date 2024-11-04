@@ -1,11 +1,16 @@
-using Jelly.GameContent;
+using System.IO;
+
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
+
+using Jelly.GameContent;
 
 namespace Beebo.GameContent;
 
 public sealed class AudioDef : RegistryEntry
 {
+    public string FilePath { get; set; }
+
     public bool IsLooped { get; set; } = false;
 
     public float Pan { get; set; } = 0;
@@ -15,6 +20,11 @@ public sealed class AudioDef : RegistryEntry
     public float Volume { get; set; } = 1;
 
     public SoundEffect SoundEffect { get; set; }
+
+    public AudioDef()
+    {
+        FilePath = Path.Combine(Main.ContentPath, "Audio", Name);
+    }
 
     public SoundEffectInstance Play(bool loopPlayback = false, float? volume = null, float? pitch = null, float? pan = null)
     {
@@ -82,7 +92,7 @@ public class AudioRegistry : Registry<AudioDef>
     {
         foreach(var def in Registries.Get<AudioRegistry>())
         {
-            def.Value.SoundEffect = content.Load<SoundEffect>($"Audio/{def.Key}");
+            def.Value.SoundEffect = content.Load<SoundEffect>(def.Value.FilePath);
         }
     }
 }

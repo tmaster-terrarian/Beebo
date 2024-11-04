@@ -20,6 +20,7 @@ using Jelly.IO;
 using Steamworks;
 using Beebo.GameContent.Components;
 using Microsoft.Xna.Framework.Audio;
+using Beebo.Mods;
 
 namespace Beebo;
 
@@ -56,6 +57,7 @@ public class Main : Game
 
     public static string SaveDataPath => Path.Combine(PathBuilder.LocalAppdataPath, AppMetadata.Name);
     public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
+    public static string ContentPath => Path.Combine(ProgramPath, "Content");
 
     public static Dictionary<CSteamID, Texture2D> AlreadyLoadedAvatars { get; } = [];
 
@@ -133,7 +135,7 @@ public class Main : Game
 
         SceneManager.ActiveSceneChanged += SceneChanged;
 
-        ModLoaderHooks.Initialize();
+        ModLoader.DoInitialize();
 
         RegistryManager.Initialize();
 

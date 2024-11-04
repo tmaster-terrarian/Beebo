@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 
 using Beebo;
-
+using Beebo.Mods;
 using Jelly;
 
 using Steamworks;
@@ -57,11 +57,11 @@ internal class Program
         {
             Beebo.Main.Logger.LogInfo($"Loading {AppMetadata.Name} {AppMetadata.CombinedVersionString}");
 
-            ModLoaderHooks.BeforeRun();
+            ModLoader.DoBeforeRun();
 
             game.Run();
 
-            ModLoaderHooks.EndRun();
+            ModLoader.DoEndRun();
         }
         catch(Exception e)
         {
