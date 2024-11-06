@@ -12,6 +12,7 @@ using Beebo.GameContent;
 using Semver;
 using System.Text.Json.Serialization;
 using System.Linq;
+using System.Text;
 
 namespace Beebo.Mods;
 
@@ -38,12 +39,15 @@ public static class ModLoader
     {
         AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve;
 
+        Main.Logger.LogInfo($"Crawling for mod assemblies...");
+
         Directory.CreateDirectory(ModsPathPath);
         foreach(var modFolder in Directory.EnumerateDirectories(ModsPathPath))
         {
+
             foreach(var fullPath in Directory.EnumerateFiles(modFolder, "*.dll"))
             {
-                Main.Logger.LogInfo($"Found assembly {Path.GetFileName(fullPath)} ({fullPath})");
+                Main.Logger.LogInfo($"  Found assembly {Path.GetFileName(fullPath)} ({fullPath})");
 
                 ReadAssembly(fullPath, modFolder, true);
 
@@ -56,7 +60,7 @@ public static class ModLoader
             {
                 foreach(var fullPath in Directory.EnumerateFiles(libPath, "*.dll", SearchOption.AllDirectories))
                 {
-                    Main.Logger.LogInfo($"Found assembly {Path.GetFileName(fullPath)} ({fullPath})");
+                    Main.Logger.LogInfo($"  Found assembly {Path.GetFileName(fullPath)} ({fullPath})");
 
                     ReadAssembly(fullPath, modFolder, false);
 
@@ -66,7 +70,23 @@ public static class ModLoader
             }
         }
 
-        Main.Logger.LogInfo($"Mods to load:\n  - {string.Join("\n  - ", loadedGuids)}");
+        {
+            StringBuilder modListLog = new("Mods to load:");
+            for(int i = 0; i < loadedMods.Count; i++)
+            {
+                var mod = loadedMods[i];
+
+                modListLog.Append("\n  - ");
+                modListLog.Append(loadedMods[i].DisplayName);
+                if(mod.DisplayName != mod.Guid)
+                {
+                    modListLog.Append(" (");
+                    modListLog.Append(loadedMods[i].Guid);
+                    modListLog.Append(')');
+                }
+            }
+            Main.Logger.LogInfo(modListLog);
+        }
 
         resolvedGuids.Clear();
 
@@ -85,11 +105,31 @@ public static class ModLoader
                 i--;
                 continue;
             }
-
-            Main.Logger.LogInfo("done");
         }
 
+        loadedMods.Sort((a, b) => a.loadIndex - b.loadIndex);
+
         // post import
+
+        {
+            StringBuilder modListLog = new StringBuilder("Successfully loaded ").Append(loadedMods.Count).Append(" mods:");
+            for(int i = 0; i < loadedMods.Count; i++)
+            {
+                var mod = loadedMods[i];
+
+                modListLog.Append("\n  - ");
+                modListLog.Append(mod.loadIndex);
+                modListLog.Append(": ");
+                modListLog.Append(loadedMods[i].DisplayName);
+                if(mod.DisplayName != mod.Guid)
+                {
+                    modListLog.Append(" (");
+                    modListLog.Append(loadedMods[i].Guid);
+                    modListLog.Append(')');
+                }
+            }
+            Main.Logger.LogInfo(modListLog);
+        }
 
         foreach(var mod in loadedMods)
         {
@@ -264,8 +304,8 @@ public static class ModLoader
     {
         bool depIsAvailable = false;
 
-        int index = loadedGuids.IndexOf(dep.Guid);
-        if (index != -1)
+        var depMod = loadedMods.FirstOrDefault(m => m.Guid == dep.Guid);
+        if (depMod != null)
         {
             string message = null;
             string dependencyKindText = "requires a";
@@ -278,7 +318,7 @@ public static class ModLoader
                 {
                     // min and max
                     if (dep.Kind == ModDependency.DependencyKind.Incompatible ^
-                        loadedMods[loadedGuids.IndexOf(dep.Guid)].Version.Satisfies(
+                        loadedMods.First(m => m.Guid == dep.Guid).Version.Satisfies(
                             UnbrokenSemVersionRange.Inclusive(
                                 SemVersion.Parse(dep.MinimumVersion, (SemVersionStyles)dep.Specificity).WithoutMetadata(),
                                 SemVersion.Parse(dep.MaximumVersion, (SemVersionStyles)dep.Specificity).WithoutMetadata(),
@@ -287,28 +327,28 @@ public static class ModLoader
                         )
                     )
                     {
-                        ResolveDependencies(loadedMods[index]);
+                        ResolveDependencies(depMod);
                         depIsAvailable = true;
                     }
                     else
-                        message = $"{mod.Guid} {dependencyKindText} version of {dep.Guid} that falls within the range {GetFancy(dep.MinimumVersion, dep.Specificity)}..{GetFancy(dep.MaximumVersion, dep.Specificity)}, but {loadedMods[index].Version} was found";
+                        message = $"{mod.Guid} {dependencyKindText} version of {dep.Guid} that falls within the range {GetFancy(dep.MinimumVersion, dep.Specificity)}..{GetFancy(dep.MaximumVersion, dep.Specificity)}, but {depMod.Version} was found";
                 }
                 else
                 {
                     // min
                     if (dep.Kind == ModDependency.DependencyKind.Incompatible ^
-                        loadedMods[loadedGuids.IndexOf(dep.Guid)].Version.Satisfies(
+                        loadedMods.First(m => m.Guid == dep.Guid).Version.Satisfies(
                             UnbrokenSemVersionRange.AtLeast(
                                 SemVersion.Parse(dep.MinimumVersion, (SemVersionStyles)dep.Specificity).WithoutMetadata(), true
                             )
                         )
                     )
                     {
-                        ResolveDependencies(loadedMods[index]);
+                        ResolveDependencies(depMod);
                         depIsAvailable = true;
                     }
                     else
-                        message = $"{mod.Guid} {dependencyKindText} version of {dep.Guid} that is greater than or equal to {GetFancy(dep.MinimumVersion, dep.Specificity)}, but {loadedMods[index].Version} was found";
+                        message = $"{mod.Guid} {dependencyKindText} version of {dep.Guid} that is greater than or equal to {GetFancy(dep.MinimumVersion, dep.Specificity)}, but {depMod.Version} was found";
                 }
             }
             else
@@ -320,7 +360,7 @@ public static class ModLoader
                 }
                 else
                 {
-                    ResolveDependencies(loadedMods[index]);
+                    ResolveDependencies(depMod);
                     depIsAvailable = true;
                 }
             }
@@ -333,6 +373,19 @@ public static class ModLoader
             if (dep.Kind != ModDependency.DependencyKind.Incompatible)
             {
                 mod.availableDependencies.Add(dep.Guid, depIsAvailable);
+            }
+
+            switch(dep.Kind)
+            {
+                case ModDependency.DependencyKind.Required:
+                    Main.Logger.LogInfo($"  {dep.Guid}: Required dependency met");
+                    break;
+                case ModDependency.DependencyKind.Optional:
+                    if(depIsAvailable)
+                        Main.Logger.LogInfo($"  {dep.Guid}: Optional dependency met");
+                    else
+                        Main.Logger.LogWarning($"  {dep.Guid}: Optional dependency was not met");
+                    break;
             }
 
             return;

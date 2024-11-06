@@ -116,9 +116,9 @@ public class Main : Game
         {
             try
             {
-                if(!steamFailed && SteamManager.Init(false))
+                if(!steamFailed)
                 {
-                    Exiting += Game_Exiting;
+                    SteamManager.Init(false);
                 }
             }
             catch(Exception e)
@@ -126,6 +126,8 @@ public class Main : Game
                 SteamManager.Logger.LogError($"Error initializing Steamworks: {e}");
             }
         }
+
+        Exiting += Game_Exiting;
 
         LocalizationManager.CurrentLanguage = "en-us";
 
@@ -319,10 +321,12 @@ public class Main : Game
 
     private void Game_Exiting(object sender, EventArgs e)
     {
-        if(SteamManager.IsSteamRunning)
+        if(Program.UseSteamworks && !steamFailed && SteamManager.IsSteamRunning)
         {
             SteamManager.Cleanup();
         }
+
+        Logger.LogInfo("Stopping!");
     }
 
     public static void ChangeScene(string name)

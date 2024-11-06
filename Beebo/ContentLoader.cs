@@ -6,6 +6,7 @@ using Jelly;
 using Jelly.Graphics;
 using System;
 using Microsoft.Xna.Framework.Content;
+using System.IO;
 
 namespace Beebo;
 
@@ -26,7 +27,10 @@ public class ContentLoader : ContentProvider
 
         try
         {
-            var texture = UseContentPipeline ? Load<Texture2D>(pathName) : Texture2D.FromFile(Renderer.GraphicsDevice, pathName);
+            var texture = UseContentPipeline
+            ? Load<Texture2D>(pathName)
+            : Texture2D.FromFile(Renderer.GraphicsDevice, Path.Combine(Main.ProgramPath, "Content", pathName));
+
             loadedTextures.Add(pathName, texture);
             return texture;
         }

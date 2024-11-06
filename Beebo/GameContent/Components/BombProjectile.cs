@@ -229,11 +229,6 @@ public class BombProjectile : Projectile
             }
         }
 
-        if(big)
-        {
-            Main.FreezeTimer = 0.1f;
-        }
-
         Scene.Entities.Remove(Entity);
     }
 }

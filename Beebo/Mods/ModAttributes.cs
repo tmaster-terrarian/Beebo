@@ -17,7 +17,7 @@ public sealed class ModInfoAttribute([DisallowNull] string guid, string displayN
     public SemVersion Version { get; } = SemVersion.Parse(versionString);
 }
 
-[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
 public sealed class ModDependency(
     [DisallowNull] string guid,
     ModDependency.DependencyKind dependencyKind,

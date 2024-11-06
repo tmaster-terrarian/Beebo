@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 
 using Beebo;
@@ -43,6 +44,9 @@ internal class Program
         Console.SetOut(_consoleOut);
         Console.SetError(_consoleError);
 
+        Trace.AutoFlush = true;
+        Trace.Listeners.Add(new TextWriterTraceListener(_consoleOut));
+
         using var game = new Main();
 
         if(args.Length > 0)
@@ -55,7 +59,7 @@ internal class Program
 
         try
         {
-            Beebo.Main.Logger.LogInfo($"Loading {AppMetadata.Name} {AppMetadata.CombinedVersionString}");
+            Beebo.Main.Logger.LogInfo($"Loading {AppMetadata.Name} {AppMetadata.VersionString}");
 
             ModLoader.DoBeforeRun();
 

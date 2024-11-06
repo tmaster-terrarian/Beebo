@@ -27,6 +27,7 @@ public static class RegistryManager
     };
 
     public static EntityRegistry EntityRegistry { get; } = new();
+    public static SceneRegistry SceneRegistry { get; } = new();
     public static AudioRegistry AudioRegistry { get; } = new();
 
     public static void Initialize()
@@ -37,10 +38,16 @@ public static class RegistryManager
         foreach(var mod in ModLoader.loadedMods)
             PolymorphicTypeResolver.GetAllDerivedTypesFromAssembly(mod.Assembly);
 
-        Main.Logger.LogInfo($"Registered Components:\n  - {string.Join("\n  - ", PolymorphicTypeResolver.GetTypeSet(typeof(Component)).DerivedTypes)}");
+        var set1 = PolymorphicTypeResolver.GetTypeSet(typeof(Component)).DerivedTypes;
+        if(set1.Count > 0)
+            Main.Logger.LogInfo($"Registered Component Types:\n  - {string.Join("\n  - ", set1)}");
+
+        var set2 = PolymorphicTypeResolver.GetTypeSet(typeof(JsonEntity)).DerivedTypes;
+        if(set2.Count > 0)
+            Main.Logger.LogInfo($"Registered JsonEntity Types:\n  - {string.Join("\n  - ", set2)}");
 
         Registries.Add(EntityRegistry);
-        Registries.Add(new SceneRegistry());
+        Registries.Add(SceneRegistry);
         Registries.Add(AudioRegistry);
 
         ModLoader.DoRegistriesInit();
