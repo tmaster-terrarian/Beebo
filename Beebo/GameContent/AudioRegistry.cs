@@ -21,11 +21,6 @@ public sealed class AudioDef : RegistryEntry
 
     public SoundEffect SoundEffect { get; set; }
 
-    public AudioDef()
-    {
-        FilePath = Path.Combine(Main.ContentPath, "Audio", Name);
-    }
-
     public SoundEffectInstance Play(bool loopPlayback = false, float? volume = null, float? pitch = null, float? pan = null)
     {
         // var instance = SoundEffect.CreateInstance();
@@ -73,15 +68,15 @@ public class AudioRegistry : Registry<AudioDef>
         #region bomb
 
         Register(new() {
-            Name = "bomb_throw",
-            Volume = 0.5f
-        });
-        Register(new() {
             Name = "bomb_bounce",
             Volume = 0.7f
         });
         Register(new() {
             Name = "bomb_explosion",
+            Volume = 0.5f
+        });
+        Register(new() {
+            Name = "bomb_throw",
             Volume = 0.5f
         });
 
@@ -92,7 +87,7 @@ public class AudioRegistry : Registry<AudioDef>
     {
         foreach(var def in Registries.Get<AudioRegistry>())
         {
-            def.Value.SoundEffect = content.Load<SoundEffect>(def.Value.FilePath);
+            def.Value.SoundEffect = content.Load<SoundEffect>(def.Value.FilePath ?? $"Audio/{def.Key}");
         }
     }
 }

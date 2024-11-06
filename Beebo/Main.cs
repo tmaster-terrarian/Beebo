@@ -93,7 +93,7 @@ public class Main : Game
             catch(DllNotFoundException e)
             {
                 // We check this here as it will be the first instance of it.
-                SteamManager.Logger.LogError("Could not load [lib]steam_api.dll/so/dylib. It's likely not in the correct location. Refer to the README for more details.\nCaused by " + e);
+                SteamManager.Logger.LogError("Could not load [lib]steam_api.dll/so/dylib.\nCaused by " + e);
                 steamFailed = true;
             }
         }
