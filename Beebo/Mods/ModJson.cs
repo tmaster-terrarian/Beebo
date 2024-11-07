@@ -15,13 +15,10 @@ public class ModJson
 
     public class ModJson_Dependencies
     {
-        [JsonPropertyName("required")]
         public IList<ModDependency>? Required { get; set; }
 
-        [JsonPropertyName("optional")]
         public IList<ModDependency>? Optional { get; set; }
 
-        [JsonPropertyName("incompatible")]
         public IList<ModDependency>? Incompatible { get; set; }
     }
 }
