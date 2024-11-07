@@ -14,45 +14,21 @@ public sealed class ModInfoAttribute([DisallowNull] string guid, string displayN
     public string DisplayName => displayName;
     public string VersionString => versionString;
 
-    public SemVersion Version { get; } = SemVersion.Parse(versionString);
+    public SemVersion Version { get; } = SemVersion.Parse(versionString, SemVersionStyles.OptionalPatch);
 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
 public sealed class ModDependency(
     [DisallowNull] string guid,
     ModDependency.DependencyKind dependencyKind,
-    string minVersion = null,
-    string maxVersion = null,
-    ModDependency.VersionSpecificity versionSpecificity = default
+    [DisallowNull] string versionRange
 ) : Attribute, IEquatable<ModDependency>
 {
     public string Guid => guid;
-    public string MinimumVersion => minVersion;
-    public string MaximumVersion => maxVersion;
-
-    [JsonPropertyName("versionSpecificity")]
-    public VersionSpecificity Specificity => versionSpecificity;
+    public string VersionRange => versionRange;
 
     [JsonPropertyName("type")]
     public DependencyKind Kind => dependencyKind;
-
-    public enum VersionSpecificity
-    {
-        /// <summary>
-        /// Only match Major and Minor versions, ie <c>1.2.* - 3.1.*</c>.
-        /// </summary>
-        OptionalPatch = SemVersionStyles.OptionalPatch,
-
-        /// <summary>
-        /// The version must exactly match the values, ie <c>1.2.5 - 3.1.0</c>.
-        /// </summary>
-        ExactMatch = SemVersionStyles.Strict,
-
-        /// <summary>
-        /// Only match Major versions, ie <c>1.* - 3.*</c>
-        /// </summary>
-        OptionalMinorPatch = SemVersionStyles.OptionalMinorPatch,
-    }
 
     public enum DependencyKind
     {
@@ -80,9 +56,7 @@ public sealed class ModDependency(
     {
         return other.Guid == Guid
             && other.Kind == Kind
-            && other.MaximumVersion == MaximumVersion
-            && other.MinimumVersion == MinimumVersion
-            && other.Specificity == Specificity;
+            && other.VersionRange == VersionRange;
     }
 
     public override bool Equals(object obj)

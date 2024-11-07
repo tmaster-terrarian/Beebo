@@ -6,11 +6,11 @@ namespace Beebo;
 
 public abstract class Mod
 {
-    internal ModLogger logger;
+    internal Logger logger;
 
     public ModDependencyInfoList Dependencies { get; } = [];
 
-    public ModLogger Logger => logger;
+    public Logger Logger => logger;
 
     public virtual void OnBeforeRun()
     {

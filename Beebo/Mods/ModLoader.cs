@@ -30,6 +30,17 @@ public static class ModLoader
 
     public static string ModsPathPath => Path.Combine(Main.ProgramPath, "mods");
 
+    public static JsonSerializerOptions SerializerOptions { get; } = new() {
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = {
+            new JsonStringEnumConverter<ModDependency.DependencyKind>(),
+        },
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
+
     private static Assembly AssemblyResolve(object sender, ResolveEventArgs args)
     {
         return AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
@@ -199,17 +210,7 @@ public static class ModLoader
                 return;
             }
 
-            ModJson modJson = JsonSerializer.Deserialize<ModJson>(File.ReadAllText(jsonPath), new JsonSerializerOptions {
-                AllowTrailingCommas = true,
-                ReadCommentHandling = JsonCommentHandling.Skip,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                Converters = {
-                    new JsonStringEnumConverter<ModDependency.DependencyKind>(),
-                    new JsonStringEnumConverter<ModDependency.VersionSpecificity>(),
-                },
-                PropertyNameCaseInsensitive = true,
-                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-            });
+            ModJson modJson = JsonSerializer.Deserialize<ModJson>(File.ReadAllText(jsonPath), SerializerOptions);
 
             nonStandardMods.Add(modJson.Guid, modJson);
 
@@ -219,7 +220,7 @@ public static class ModLoader
                 Assembly = assembly,
                 Guid = modJson.Guid,
                 DisplayName = modJson.Name ?? modJson.Guid,
-                Version = SemVersion.Parse(modJson.Version),
+                Version = SemVersion.Parse(modJson.Version, SemVersionStyles.OptionalPatch),
                 VersionString = modJson.Version,
             };
 
@@ -286,7 +287,12 @@ public static class ModLoader
             }
 
             if (errors.Count > 0)
-                throw new Exception($"Failed to resolve dependencies for {mod.Guid} due to the following errors:\n  {string.Join("\n  ", errors)}");
+            {
+                Main.Logger.LogError(new AggregateException($"Failed to resolve dependencies for {mod.Guid} due to errors", errors));
+                mod.failedLoad = true;
+                resolvedGuids.Add(mod.Guid);
+                return;
+            }
         }
         catch(Exception e)
         {
@@ -307,67 +313,30 @@ public static class ModLoader
         var depMod = loadedMods.FirstOrDefault(m => m.Guid == dep.Guid);
         if (depMod != null)
         {
-            string message = null;
             string dependencyKindText = "requires a";
             if (dep.Kind == ModDependency.DependencyKind.Incompatible)
                 dependencyKindText = "is incompatible with any";
 
-            if (dep.MinimumVersion != null)
+            try
             {
-                if (dep.MaximumVersion != null)
-                {
-                    // min and max
-                    if (dep.Kind == ModDependency.DependencyKind.Incompatible ^
-                        loadedMods.First(m => m.Guid == dep.Guid).Version.Satisfies(
-                            UnbrokenSemVersionRange.Inclusive(
-                                SemVersion.Parse(dep.MinimumVersion, (SemVersionStyles)dep.Specificity).WithoutMetadata(),
-                                SemVersion.Parse(dep.MaximumVersion, (SemVersionStyles)dep.Specificity).WithoutMetadata(),
-                                true
-                            )
-                        )
-                    )
-                    {
-                        ResolveDependencies(depMod);
-                        depIsAvailable = true;
-                    }
-                    else
-                        message = $"{mod.Guid} {dependencyKindText} version of {dep.Guid} that falls within the range {GetFancy(dep.MinimumVersion, dep.Specificity)}..{GetFancy(dep.MaximumVersion, dep.Specificity)}, but {depMod.Version} was found";
-                }
-                else
-                {
-                    // min
-                    if (dep.Kind == ModDependency.DependencyKind.Incompatible ^
-                        loadedMods.First(m => m.Guid == dep.Guid).Version.Satisfies(
-                            UnbrokenSemVersionRange.AtLeast(
-                                SemVersion.Parse(dep.MinimumVersion, (SemVersionStyles)dep.Specificity).WithoutMetadata(), true
-                            )
-                        )
-                    )
-                    {
-                        ResolveDependencies(depMod);
-                        depIsAvailable = true;
-                    }
-                    else
-                        message = $"{mod.Guid} {dependencyKindText} version of {dep.Guid} that is greater than or equal to {GetFancy(dep.MinimumVersion, dep.Specificity)}, but {depMod.Version} was found";
-                }
-            }
-            else
-            {
-                // no specific version
-                if (dep.Kind == ModDependency.DependencyKind.Incompatible)
-                {
-                    message = $"{mod.Guid} is incompatible with {dep.Guid}, but {dep.Guid} was found";
-                }
-                else
+                var versionRangeOptions = SemVersionRangeOptions.OptionalPatch | SemVersionRangeOptions.IncludeAllPrerelease;
+
+                bool versionMatches = SemVersionRange.Parse(dep.VersionRange, versionRangeOptions)
+                    .Contains(loadedMods.First(m => m.Guid == dep.Guid).Version);
+
+                // min and max
+                if ((dep.Kind == ModDependency.DependencyKind.Incompatible ^ versionMatches)
+                    || (dep.Kind == ModDependency.DependencyKind.Optional && versionMatches))
                 {
                     ResolveDependencies(depMod);
                     depIsAvailable = true;
                 }
+                else
+                    throw new Exception($"{mod.Guid} {dependencyKindText} version of {dep.Guid} that falls within the range {dep.VersionRange}, but {depMod.Version} was found");
             }
-
-            if (message != null)
+            catch(Exception e)
             {
-                errors.Add(new Exception(message));
+                errors.Add(e);
             }
 
             if (dep.Kind != ModDependency.DependencyKind.Incompatible)
@@ -378,64 +347,54 @@ public static class ModLoader
             switch(dep.Kind)
             {
                 case ModDependency.DependencyKind.Required:
-                    Main.Logger.LogInfo($"  {dep.Guid}: Required dependency met");
+                    if(depIsAvailable)
+                        Main.Logger.LogInfo($"  {dep.Guid} {dep.VersionRange}: Required dependency met");
+                    else
+                        Main.Logger.LogError($" {dep.Guid} {dep.VersionRange}: Required dependency was not met");
                     break;
                 case ModDependency.DependencyKind.Optional:
                     if(depIsAvailable)
-                        Main.Logger.LogInfo($"  {dep.Guid}: Optional dependency met");
+                        Main.Logger.LogInfo($"  {dep.Guid} {dep.VersionRange}: Optional dependency met");
                     else
-                        Main.Logger.LogWarning($"  {dep.Guid}: Optional dependency was not met");
+                        Main.Logger.LogWarning($"  {dep.Guid} {dep.VersionRange}: Optional dependency was not met");
                     break;
             }
 
             return;
+        }
+
+        if (dep.Kind != ModDependency.DependencyKind.Incompatible)
+        {
+            mod.availableDependencies.Add(dep.Guid, false);
         }
 
         if (dep.Kind == ModDependency.DependencyKind.Required)
         {
-            string message = "";
-            if (dep.MinimumVersion != null)
-            {
-                if (dep.MaximumVersion != null)
-                {
-                    // min and max
-                    message = $"{mod.Guid} requires a version of {dep.Guid} that falls within the range {GetFancy(dep.MinimumVersion, dep.Specificity)}..{GetFancy(dep.MaximumVersion, dep.Specificity)}, but {dep.Guid} is missing";
-                }
-                else
-                {
-                    // min
-                    message = $"{mod.Guid} requires a version of {dep.Guid} that is greater than or equal to {GetFancy(dep.MinimumVersion, dep.Specificity)}, but {dep.Guid} is missing";
-                }
-            }
-            else
-            {
-                // no specific version
-                message = $"{mod.Guid} requires {dep.Guid}, but {dep.Guid} is missing";
-            }
-
-            errors.Add(new Exception(message));
-
-            return;
+            throw new Exception($"{mod.Guid} requires a version of {dep.Guid} that falls within the range {dep.VersionRange}, but {dep.Guid} is missing");
         }
-    }
 
-    private static string GetFancy(string version, ModDependency.VersionSpecificity specificity)
-    {
-        var split = version.Split('.');
-        return specificity switch
+        switch(dep.Kind)
         {
-            ModDependency.VersionSpecificity.OptionalPatch => $"{split[0]}.{split[1]}.x",
-            ModDependency.VersionSpecificity.OptionalMinorPatch => $"{split[0]}.x",
-            ModDependency.VersionSpecificity.ExactMatch or _ => SemVersion.Parse(version).ToString(),
-        };
+            case ModDependency.DependencyKind.Required:
+                if(depIsAvailable)
+                    Main.Logger.LogInfo($"  {dep.Guid} {dep.VersionRange}: Required dependency met");
+                else
+                    Main.Logger.LogWarning($"  {dep.Guid} {dep.VersionRange}: Required dependency was not met");
+                break;
+            case ModDependency.DependencyKind.Optional:
+                if(depIsAvailable)
+                    Main.Logger.LogInfo($"  {dep.Guid} {dep.VersionRange}: Optional dependency met");
+                else
+                    Main.Logger.LogWarning($"  {dep.Guid} {dep.VersionRange}: Optional dependency was not met");
+                break;
+        }
     }
 
     internal static void DoInitialize()
     {
         foreach (var mod in loadedMods)
         {
-            if(!mod.isNonStandard)
-                mod.Instance.OnInitialize();
+            mod.Instance?.OnInitialize();
         }
     }
 
@@ -443,8 +402,7 @@ public static class ModLoader
     {
         foreach (var mod in loadedMods)
         {
-            if(!mod.isNonStandard)
-                mod.Instance.OnRegistriesInit();
+            mod.Instance?.OnRegistriesInit();
         }
     }
 
@@ -452,8 +410,7 @@ public static class ModLoader
     {
         foreach (var mod in loadedMods)
         {
-            if(!mod.isNonStandard)
-                mod.Instance.OnLoadContent();
+            mod.Instance?.OnLoadContent();
         }
     }
 
@@ -461,8 +418,7 @@ public static class ModLoader
     {
         foreach (var mod in loadedMods)
         {
-            if(!mod.isNonStandard)
-                mod.Instance.OnEndRun();
+            mod.Instance?.OnEndRun();
         }
     }
 }
