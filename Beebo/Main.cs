@@ -9,7 +9,7 @@ using Microsoft.Xna.Framework.Input;
 
 using Beebo.Commands;
 using Beebo.GameContent;
-using Beebo.GameContent.Components;
+using Beebo.Components;
 using Beebo.Graphics;
 using Beebo.Mods;
 using Beebo.Net;

@@ -1,7 +1,7 @@
 using Jelly;
 using Jelly.Components;
 
-namespace Beebo.GameContent.Components;
+namespace Beebo.Components;
 
 public class BulletProjectile : Projectile
 {

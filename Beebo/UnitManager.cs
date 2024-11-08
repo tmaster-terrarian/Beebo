@@ -1,4 +1,4 @@
-using Beebo.GameContent.Components;
+using Beebo.Components;
 
 namespace Beebo;
 

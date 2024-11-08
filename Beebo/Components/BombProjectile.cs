@@ -1,4 +1,5 @@
 using System;
+using Beebo.GameContent;
 using Jelly;
 using Jelly.Components;
 using Jelly.Graphics;
@@ -7,7 +8,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace Beebo.GameContent.Components;
+namespace Beebo.Components;
 
 public class BombProjectile : Projectile
 {

@@ -1,5 +1,3 @@
-using System.IO;
-
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
 

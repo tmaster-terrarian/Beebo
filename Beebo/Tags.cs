@@ -1,7 +1,10 @@
+using System;
+
 using Jelly;
 
 namespace Beebo;
 
+[Flags]
 public enum EntityTags : uint
 {
     None = 0,

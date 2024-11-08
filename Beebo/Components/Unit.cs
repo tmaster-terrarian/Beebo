@@ -1,6 +1,6 @@
 using Jelly;
 
-namespace Beebo.GameContent.Components;
+namespace Beebo.Components;
 
 public class Unit : Component
 {

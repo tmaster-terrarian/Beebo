@@ -5,7 +5,7 @@ using Jelly.Utilities;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace Beebo.GameContent.Components;
+namespace Beebo.Components;
 
 public class ExplosionEffect : Component
 {

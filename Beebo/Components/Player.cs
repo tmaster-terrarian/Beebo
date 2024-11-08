@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
@@ -13,8 +12,9 @@ using Jelly;
 using Jelly.Components;
 using Jelly.Graphics;
 using Jelly.Utilities;
+using Beebo.GameContent;
 
-namespace Beebo.GameContent.Components;
+namespace Beebo.Components;
 
 public enum PlayerState
 {
@@ -173,8 +173,12 @@ public class Player : Actor
     public int Hp { get; set; } = 100;
     public bool Dead { get; private set; }
 
+    private bool onCreated;
+
     public override void OnCreated()
     {
+        onCreated = true;
+
         AddTexture("idle", 6);
         AddTexture("lookup", 6);
         AddTexture("crawl", 8);
@@ -194,10 +198,14 @@ public class Player : Actor
         AddSound("throw_bomb");
 
         SetHitbox(MaskNormal, PivotNormal);
+
+        onCreated = false;
     }
 
     void AddTexture(string path, int frameCount = 1)
     {
+        if(!onCreated) throw new InvalidOperationException("Can only add textures in the OnCreated method");
+
         const string texPath = "Images/Player/";
         textures.Add(ContentLoader.LoadTexture(texPath + path));
         frameCounts.Add(frameCount);
@@ -205,6 +213,8 @@ public class Player : Actor
 
     void AddSound(string path)
     {
+        if(!onCreated) throw new InvalidOperationException("Can only add sounds in the OnCreated method");
+
         const string texPath = "player_";
         sounds.Add(path, AudioRegistry.GetDefStatic(texPath + path));
     }

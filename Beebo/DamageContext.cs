@@ -1,5 +1,5 @@
 using System;
-using Beebo.GameContent.Components;
+using Beebo.Components;
 
 namespace Beebo;
 

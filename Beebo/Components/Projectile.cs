@@ -3,7 +3,7 @@ using Jelly;
 using Jelly.Components;
 using Jelly.Utilities;
 
-namespace Beebo.GameContent.Components;
+namespace Beebo.Components;
 
 public class Projectile : Actor
 {

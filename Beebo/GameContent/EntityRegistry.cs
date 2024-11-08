@@ -1,6 +1,6 @@
-using Beebo.GameContent.Components;
+using Beebo.Components;
+
 using Jelly.GameContent;
-using Microsoft.Xna.Framework;
 
 namespace Beebo.GameContent;
 
@@ -23,5 +23,7 @@ public class EntityRegistry : Registry<EntityDef>
                 }
             }
         });
+
+        // maybe could load json files here too..
     }
 }
