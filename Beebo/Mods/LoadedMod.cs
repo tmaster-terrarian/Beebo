@@ -26,7 +26,5 @@ public sealed class LoadedMod
 
     public string DisplayName { get; internal set; }
 
-    public string VersionString { get; internal set; }
-
     public SemVersion Version { get; internal set; }
 }

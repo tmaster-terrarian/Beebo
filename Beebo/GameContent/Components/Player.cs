@@ -1321,7 +1321,7 @@ public class Player : Actor
     {
         if(!JellyBackend.DebugEnabled) return;
 
-        Renderer.SpriteBatch.DrawStringSpacesFix(MasterRenderer.Fonts.RegularFont, State.ToString(), new Vector2(1, 1), Color.White, 6);
+        Renderer.SpriteBatch.DrawStringSpacesFix(Fonts.RegularFont, State.ToString(), new Vector2(1, 1), Color.White, 6);
     }
 }
 

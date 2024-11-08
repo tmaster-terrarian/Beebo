@@ -3,24 +3,23 @@ using System.Collections.Generic;
 using System.IO;
 
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 using Beebo.Commands;
 using Beebo.GameContent;
+using Beebo.GameContent.Components;
 using Beebo.Graphics;
+using Beebo.Mods;
 using Beebo.Net;
 
 using Jelly;
 using Jelly.Coroutines;
 using Jelly.GameContent;
 using Jelly.Graphics;
-using Jelly.IO;
 
 using Steamworks;
-using Beebo.GameContent.Components;
-using Microsoft.Xna.Framework.Audio;
-using Beebo.Mods;
 
 namespace Beebo;
 
@@ -54,10 +53,6 @@ public class Main : Game
     public static int NetID => P2PManager.GetMemberIndex(P2PManager.MyID);
     public static bool IsHost => P2PManager.GetLobbyOwner() == P2PManager.MyID;
     public static Texture2D? DefaultSteamProfile { get; private set; }
-
-    public static string SaveDataPath => Path.Combine(PathBuilder.LocalAppdataPath, AppMetadata.Name);
-    public static string ProgramPath => AppDomain.CurrentDomain.BaseDirectory;
-    public static string ContentPath => Path.Combine(ProgramPath, "Content");
 
     public static Dictionary<CSteamID, Texture2D> AlreadyLoadedAvatars { get; } = [];
 
@@ -131,8 +126,6 @@ public class Main : Game
 
         LocalizationManager.CurrentLanguage = "en-us";
 
-        CommandManager.Initialize();
-
         BeeboImGuiRenderer.Initialize(this);
 
         SceneManager.ActiveSceneChanged += SceneChanged;
@@ -143,6 +136,8 @@ public class Main : Game
 
         JellyBackend.Initialize(new ContentLoader(Content));
 
+        CommandManager.Initialize();
+
         base.Initialize();
     }
 
@@ -150,7 +145,7 @@ public class Main : Game
     {
         Renderer.LoadContent(Content);
 
-        MasterRenderer.LoadContent(Content);
+        Fonts.LoadContent(Content);
 
         AudioRegistry.LoadContent(Content);
         SoundEffect.MasterVolume = 0.5f;
@@ -158,6 +153,8 @@ public class Main : Game
         DefaultSteamProfile = Content.Load<Texture2D>("Images/UI/Multiplayer/DefaultProfile");
 
         BeeboImGuiRenderer.LoadContent(Content);
+
+        ModLoader.DoLoadContent();
     }
 
     protected override void BeginRun()

@@ -10,11 +10,10 @@ namespace Beebo;
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class ModInfoAttribute([DisallowNull] string guid, string displayName, [DisallowNull] string versionString) : Attribute
 {
-    public string Guid => guid;
+    public string Guid => guid ?? throw new NullReferenceException("ModInfo GUID cannot be null");
     public string DisplayName => displayName;
-    public string VersionString => versionString;
 
-    public SemVersion Version { get; } = SemVersion.Parse(versionString, SemVersionStyles.OptionalPatch);
+    public SemVersion Version { get; } = SemVersion.Parse(versionString ?? throw new NullReferenceException("ModInfo Version cannot be null"), SemVersionStyles.OptionalPatch);
 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]

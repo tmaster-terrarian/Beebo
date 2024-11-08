@@ -21,14 +21,11 @@ public static class ModLoader
     private static int loadNum;
 
     internal static readonly List<LoadedMod> loadedMods = [];
-    internal static readonly List<string> loadedPaths = [];
-    internal static readonly List<string> loadedGuids = [];
 
-    internal static readonly List<string> resolvedGuids = [];
+    internal static readonly HashSet<string> loadedPaths = [];
+    internal static readonly HashSet<string> resolvedGuids = [];
 
     internal static readonly Dictionary<string, ModJson> nonStandardMods = [];
-
-    public static string ModsPathPath => Path.Combine(Main.ProgramPath, "mods");
 
     public static JsonSerializerOptions SerializerOptions { get; } = new() {
         AllowTrailingCommas = true,
@@ -50,22 +47,24 @@ public static class ModLoader
     {
         AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve;
 
-        Main.Logger.LogInfo($"Crawling for mod assemblies...");
+        Main.Logger.LogInfo($"Finding mod assemblies...");
 
-        Directory.CreateDirectory(ModsPathPath);
-        foreach(var modFolder in Directory.EnumerateDirectories(ModsPathPath))
+        Directory.CreateDirectory(FileLocations.ModsPath);
+        foreach(var modFolder in Directory.EnumerateDirectories(FileLocations.ModsPath))
         {
-
-            foreach(var fullPath in Directory.EnumerateFiles(modFolder, "*.dll"))
+            // load top-level assemblies
+            // can be standard and non-standard
+            foreach(var fullPath in Directory.EnumerateFiles(modFolder, "*.dll", SearchOption.TopDirectoryOnly))
             {
                 Main.Logger.LogInfo($"  Found assembly {Path.GetFileName(fullPath)} ({fullPath})");
 
                 ReadAssembly(fullPath, modFolder, true);
 
-                if(!loadedPaths.Contains(modFolder))
-                    loadedPaths.Add(modFolder);
+                loadedPaths.Add(modFolder);
             }
 
+            // load lib assemblies (recursive!)
+            // only loads non-standard
             var libPath = Path.Combine(modFolder, "lib");
             if(Directory.Exists(libPath))
             {
@@ -75,8 +74,7 @@ public static class ModLoader
 
                     ReadAssembly(fullPath, modFolder, false);
 
-                    if(!loadedPaths.Contains(modFolder))
-                        loadedPaths.Add(modFolder);
+                    loadedPaths.Add(modFolder);
                 }
             }
         }
@@ -112,7 +110,6 @@ public static class ModLoader
             if(mod.failedLoad)
             {
                 loadedMods.RemoveAt(i);
-                loadedGuids.Remove(mod.Guid);
                 i--;
                 continue;
             }
@@ -160,88 +157,101 @@ public static class ModLoader
         try
         {
             assembly = Assembly.Load(File.ReadAllBytes(path));
+
+            if(!standard)
+            {
+                try
+                {
+                    ImportLibrary(path, basePath, assembly);
+                }
+                catch (Exception e)
+                {
+                    Main.Logger.LogError(new ModLoadException($"Failed to load assembly {assembly.FullName} ({path})", e));
+                }
+                return;
+            }
         }
         catch(Exception e)
         {
             var name = assembly?.FullName ?? Path.GetFileNameWithoutExtension(path);
-
-            Main.Logger.LogError(
-                new Exception($"Failed to load assembly {name} ({Path.GetRelativePath(Main.ProgramPath, path)})", e)
-            );
-
+            Main.Logger.LogError(new ModLoadException($"Failed to load assembly {name} ({path})", e));
             return;
         }
 
-        if(standard)
+        foreach(var type in assembly.GetTypes())
         {
-            foreach(var type in assembly.GetTypes())
+            try
             {
-                try
+                if(type.IsSubclassOf(typeof(Mod)) && type.IsPublic)
                 {
-                    if(type.IsSubclassOf(typeof(Mod)) && type.IsPublic)
+                    LoadedMod mod = new()
                     {
-                        LoadedMod mod = new() {
-                            Assembly = assembly,
-                            BasePath = basePath,
-                            MainClass = type
-                        };
+                        Assembly = assembly,
+                        BasePath = basePath,
+                        MainClass = type
+                    };
 
-                        ImportMod(mod);
-                        return;
-                    }
-                }
-                catch(Exception e)
-                {
-                    Main.Logger.LogError(new Exception($"Failed to load assembly {assembly.FullName} ({path})", e));
+                    ImportMod(mod);
                     return;
                 }
             }
-        }
-        else if(!loadedPaths.Contains(basePath))
-        {
-            // fallback for libraries and assemblies that lack a Mod class
-            // in this case the mod *must* have a mod.json file at its root
-
-            var jsonPath = Path.Combine(basePath, "mod.json");
-
-            if(!File.Exists(jsonPath))
+            catch(Exception e)
             {
-                Main.Logger.LogError(new Exception($"Failed to load assembly {assembly.FullName} ({path})", new Exception("The mod is library-only but does not contain the required mod.json file")));
+                Main.Logger.LogError(new ModLoadException($"Failed to load assembly {assembly.FullName} ({path})", e));
                 return;
             }
-
-            ModJson modJson = JsonSerializer.Deserialize<ModJson>(File.ReadAllText(jsonPath), SerializerOptions);
-
-            nonStandardMods.Add(modJson.Guid, modJson);
-
-            LoadedMod mod = new()
-            {
-                isNonStandard = true,
-                Assembly = assembly,
-                Guid = modJson.Guid,
-                DisplayName = modJson.Name ?? modJson.Guid,
-                Version = SemVersion.Parse(modJson.Version, SemVersionStyles.OptionalPatch),
-                VersionString = modJson.Version,
-            };
-
-            loadedMods.Add(mod);
-            loadedGuids.Add(mod.Guid);
         }
+
+        // fallback if no Mod class found
+        try
+        {
+            ImportLibrary(path, basePath, assembly);
+        }
+        catch (Exception e)
+        {
+            Main.Logger.LogError(new ModLoadException($"Failed to load assembly {assembly.FullName} ({path})", e));
+        }
+    }
+
+    private static void ImportLibrary(string path, string basePath, Assembly assembly)
+    {
+        // fallback for assemblies that lack a Mod class
+        // in this case the mod *must* have a mod.json file at its root
+
+        if(loadedPaths.Contains(basePath)) return;
+
+        var jsonPath = Path.Combine(basePath, "mod.json");
+        if(!File.Exists(jsonPath))
+        {
+            throw new FileNotFoundException("The mod is library-only but does not contain the required mod.json file", "mod.json");
+        }
+
+        ModJson modJson = JsonSerializer.Deserialize<ModJson>(File.ReadAllText(jsonPath), SerializerOptions);
+
+        nonStandardMods.TryAdd(modJson.Guid, modJson);
+
+        LoadedMod mod = new()
+        {
+            isNonStandard = true,
+            Assembly = assembly,
+            Guid = modJson.Guid,
+            DisplayName = modJson.Name ?? modJson.Guid,
+            Version = SemVersion.Parse(modJson.Version, SemVersionStyles.OptionalPatch),
+        };
+
+        loadedMods.Add(mod);
     }
 
     private static void ImportMod(LoadedMod mod)
     {
         if(mod.MainClass.GetCustomAttribute<ModInfoAttribute>() is not ModInfoAttribute modInfo)
         {
-            throw new Exception($"Mod class is missing ModInfo attribute");
+            throw new ModLoadException($"Mod class is missing required ModInfo attribute");
         }
 
-        mod.Guid = modInfo.Guid ?? throw new NullReferenceException("ModInfo GUID cannot be null");
+        mod.Guid = modInfo.Guid;
         mod.DisplayName = modInfo.DisplayName ?? mod.Guid;
-
-        mod.VersionString = modInfo.VersionString ?? throw new NullReferenceException("ModInfo Version cannot be null");
         mod.Version = modInfo.Version;
-        // can safely assume that if VersionString exists, then Version must exist
 
         if(modInfo.DisplayName == null)
         {
@@ -249,7 +259,6 @@ public static class ModLoader
         }
 
         loadedMods.Add(mod);
-        loadedGuids.Add(mod.Guid);
     }
 
     private static void ResolveDependencies(LoadedMod mod)
@@ -310,8 +319,8 @@ public static class ModLoader
     {
         bool depIsAvailable = false;
 
-        var depMod = loadedMods.FirstOrDefault(m => m.Guid == dep.Guid);
-        if (depMod != null)
+        var depMod = loadedMods.FirstOrDefault(m => m.Guid == dep.Guid, null);
+        if(depMod != null)
         {
             string dependencyKindText = "requires a";
             if (dep.Kind == ModDependency.DependencyKind.Incompatible)
@@ -332,14 +341,14 @@ public static class ModLoader
                     depIsAvailable = true;
                 }
                 else
-                    throw new Exception($"{mod.Guid} {dependencyKindText} version of {dep.Guid} that falls within the range {dep.VersionRange}, but {depMod.Version} was found");
+                    throw new ModLoadException($"{mod.Guid} {dependencyKindText} version of {dep.Guid} that falls within the range {dep.VersionRange}, but {depMod.Version} was found");
             }
             catch(Exception e)
             {
                 errors.Add(e);
             }
 
-            if (dep.Kind != ModDependency.DependencyKind.Incompatible)
+            if(dep.Kind != ModDependency.DependencyKind.Incompatible)
             {
                 mod.availableDependencies.Add(dep.Guid, depIsAvailable);
             }
@@ -363,14 +372,14 @@ public static class ModLoader
             return;
         }
 
-        if (dep.Kind != ModDependency.DependencyKind.Incompatible)
+        if (dep.Kind == ModDependency.DependencyKind.Optional)
         {
             mod.availableDependencies.Add(dep.Guid, false);
         }
 
         if (dep.Kind == ModDependency.DependencyKind.Required)
         {
-            throw new Exception($"{mod.Guid} requires a version of {dep.Guid} that falls within the range {dep.VersionRange}, but {dep.Guid} is missing");
+            errors.Add(new ModLoadException($"{mod.Guid} requires a version of {dep.Guid} that falls within the range {dep.VersionRange}, but {dep.Guid} is missing"));
         }
 
         switch(dep.Kind)
@@ -379,7 +388,7 @@ public static class ModLoader
                 if(depIsAvailable)
                     Main.Logger.LogInfo($"  {dep.Guid} {dep.VersionRange}: Required dependency met");
                 else
-                    Main.Logger.LogWarning($"  {dep.Guid} {dep.VersionRange}: Required dependency was not met");
+                    Main.Logger.LogError($" {dep.Guid} {dep.VersionRange}: Required dependency was not met");
                 break;
             case ModDependency.DependencyKind.Optional:
                 if(depIsAvailable)
@@ -421,4 +430,19 @@ public static class ModLoader
             mod.Instance?.OnEndRun();
         }
     }
+}
+
+public class ModLoadException(string? message, string? guid, Exception? innerException)
+    : Exception(message ?? "Mod loading failed" + (guid != null ? $" (Failed to load mod {guid})" : ""), innerException)
+{
+    public string Guid => guid;
+
+    public ModLoadException(string? message, Exception? innerException)
+        : this(message, null, innerException) {}
+
+    public ModLoadException(string? message)
+        : this(message, null, null) {}
+
+    public ModLoadException()
+        : this(null, null, null) {}
 }

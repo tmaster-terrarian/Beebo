@@ -271,7 +271,7 @@ public static partial class Chat
                 );
             }
 
-            var font = MasterRenderer.Fonts.RegularFont;
+            var font = Fonts.RegularFont;
 
             if(WindowOpen)
             {
@@ -486,14 +486,14 @@ public static partial class Chat
             if(!noLog)
                 Main.Logger.LogInfo("<Server>: " + message);
 
-            var txt = TextComponent.WordWrap(message, (int)(((Renderer.ScreenSize.X / 2) - 1) / MasterRenderer.Fonts.RegularFont.MeasureString("0").X));
+            var txt = TextComponent.WordWrap(message, (int)(((Renderer.ScreenSize.X / 2) - 1) / Fonts.RegularFont.MeasureString("0").X));
 
             foreach(var line in txt.Split('\n'))
             {
                 History.Add(new TextComponent {
                     Text = $"{line}",
                     Color = Color.Yellow,
-                    Font = MasterRenderer.Fonts.RegularFont,
+                    Font = Fonts.RegularFont,
                     SpaceWidth = 6,
                     TextAlignment = TextAlignmentPresets.TopLeft,
                     RenderNewlines = false,
@@ -512,14 +512,14 @@ public static partial class Chat
             if(!noLog)
                 Main.Logger.LogInfo(name + ": " + message);
 
-            var txt = TextComponent.WordWrap(message, (int)(((Renderer.ScreenSize.X / 2) - 1) / MasterRenderer.Fonts.RegularFont.MeasureString("0").X));
+            var txt = TextComponent.WordWrap(message, (int)(((Renderer.ScreenSize.X / 2) - 1) / Fonts.RegularFont.MeasureString("0").X));
 
             foreach(var line in $"{name}: {txt}".Split('\n'))
             {
                 History.Add(new TextComponent {
                     Text = $"{line}",
                     Color = Color.White,
-                    Font = MasterRenderer.Fonts.RegularFont,
+                    Font = Fonts.RegularFont,
                     SpaceWidth = 6,
                     TextAlignment = TextAlignmentPresets.TopLeft,
                     RenderNewlines = false,

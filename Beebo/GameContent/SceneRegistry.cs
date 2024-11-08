@@ -13,7 +13,7 @@ public class SceneRegistry : Registry<SceneDef>
 {
     public override void Init()
     {
-        string path = Path.Combine(Main.ProgramPath, "Content", "Levels");
+        string path = Path.Combine(FileLocations.ContentPath, "Levels");
         foreach(var file in Directory.EnumerateFiles(path, "*.json", SearchOption.TopDirectoryOnly))
         {
             string fileName = Path.GetFileNameWithoutExtension(file);

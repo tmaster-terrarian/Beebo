@@ -29,6 +29,7 @@ public static class RegistryManager
     public static EntityRegistry EntityRegistry { get; } = new();
     public static SceneRegistry SceneRegistry { get; } = new();
     public static AudioRegistry AudioRegistry { get; } = new();
+    public static CommandRegistry CommandRegistry { get; } = new();
 
     public static void Initialize()
     {
@@ -49,6 +50,7 @@ public static class RegistryManager
         Registries.Add(EntityRegistry);
         Registries.Add(SceneRegistry);
         Registries.Add(AudioRegistry);
+        Registries.Add(CommandRegistry);
 
         ModLoader.DoRegistriesInit();
     }

@@ -29,7 +29,7 @@ public class ContentLoader : ContentProvider
         {
             var texture = UseContentPipeline
             ? Load<Texture2D>(pathName)
-            : Texture2D.FromFile(Renderer.GraphicsDevice, Path.Combine(Main.ProgramPath, "Content", pathName));
+            : Texture2D.FromFile(Renderer.GraphicsDevice, Path.Combine(FileLocations.ContentPath, pathName));
 
             loadedTextures.Add(pathName, texture);
             return texture;

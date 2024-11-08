@@ -22,7 +22,7 @@ internal class Program
 
     private static void Main(string[] args)
     {
-        LogFile = File.CreateText(Path.Combine(Beebo.Main.ProgramPath, "latest.log"));
+        LogFile = File.CreateText(Path.Combine(FileLocations.ProgramPath, "latest.log"));
         LogFile.AutoFlush = true;
         LogFile.NewLine = "\n";
 

@@ -46,10 +46,10 @@ public static class SteamManager
 
         Initialize();
 
-        {
-            Logger.LogInfo($"Steam AppInstallDir: {SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260)} {folder}");
-            Logger.LogInfo($"ProgramPath: {Main.ProgramPath.Length + 1} {Main.ProgramPath}");
-        }
+        // {
+        //     Logger.LogInfo($"Steam AppInstallDir: {SteamApps.GetAppInstallDir(SteamUtils.GetAppID(), out string folder, 260)} {folder}");
+        //     Logger.LogInfo($"ProgramPath: {FileLocations.ProgramPath.Length + 1} {FileLocations.ProgramPath}");
+        // }
 
         return IsSteamRunning = true;
     }
