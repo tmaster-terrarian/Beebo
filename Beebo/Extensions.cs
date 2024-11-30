@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Beebo.GameContent;
 using Jelly;
@@ -59,5 +60,14 @@ public static class Extensions
                 );
             }
         }
+    }
+
+    public static object GetDefault(this Type type)
+    {
+        if(type.IsValueType)
+        {
+            return Activator.CreateInstance(type);
+        }
+        return null;
     }
 }

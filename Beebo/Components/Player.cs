@@ -129,7 +129,7 @@ public class Player : Actor
         RunFast,
         Wallslide,
         LedgeGrab,
-        LedgeClimb,
+        LedgeClimb
     }
 
     public PlayerInputMapping InputMapping { get; } = new() {
@@ -379,7 +379,7 @@ public class Player : Actor
                 {
                     velocity.X += moveSpeed * 0.8f * inputDir + (0.4f * -Facing);
 
-                    if(!CheckColliding(Hitbox.Shift(0, c is not null ? c.Top - Top : 0), c is null)) // if theres space jump as normal
+                    if(!CheckColliding(Hitbox.Shift(0, c is not null ? c.Top - Top : 0), c is null) && inputDir == Facing) // if theres space jump as normal
                         velocity.Y -= 2.7f * (!InputMapping.Down.IsDown).ToInt32();
                     else // else displace the player first
                     {

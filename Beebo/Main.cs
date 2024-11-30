@@ -40,7 +40,7 @@ public class Main : Game
     public static Camera Camera => camera;
     public static Vector2 CameraTarget;
 
-    public static ulong TotalFrames { get; private set; }
+    public static ulong Time { get; private set; }
     public static float FreezeTimer { get; set; }
     public static bool Paused { get; private set; }
 
@@ -138,6 +138,8 @@ public class Main : Game
 
         CommandManager.Initialize();
 
+        RendererList.Initialize();
+
         base.Initialize();
     }
 
@@ -203,31 +205,30 @@ public class Main : Game
             // P2PManager.ReadAvailablePackets();
         }
 
-        GlobalCoroutineRunner.Update(Time.UnscaledDeltaTime);
+        GlobalCoroutineRunner.Update(Jelly.Time.UnscaledDeltaTime);
 
         if(!Paused)
         {
             if(FreezeTimer > 0)
-                FreezeTimer = Math.Max(FreezeTimer - Time.UnscaledDeltaTime, 0);
+                FreezeTimer = Math.Max(FreezeTimer - Jelly.Time.UnscaledDeltaTime, 0);
             else
             {
                 if(Player?.GetComponent<Player>() is Player p)
                 {
-                    CameraTarget = new(
-                        p.Center.X + (Input.GetDown(Keys.LeftControl)
+                    CameraTarget = CameraTarget with {
+                        X = p.Center.X + (Input.GetDown(Keys.LeftControl)
                             ? 0
                             : Math.Sign(p.VisualFacing * (p.State == PlayerState.Wallslide || p.State == PlayerState.LedgeGrab ? -1 : 1)) * 12),
 
-                        p.Center.Y + (Input.GetDown(Keys.LeftControl) ? 0 : -12 - p.Lookup * 24 + p.velocity.Y)
-                    );
+                        Y = p.Center.Y + (Input.GetDown(Keys.LeftControl) ? 0 : -12 - p.Lookup * 24 + p.velocity.Y)
+                    };
                 }
 
                 Scene?.PreUpdate();
                 Scene?.Update();
+                Scene?.PostUpdate();
 
                 camera.Position += (CameraTarget - (Renderer.ScreenSize.ToVector2() / 2f) - camera.Position) / 4f;
-
-                Scene?.PostUpdate();
             }
         }
  
@@ -246,12 +247,15 @@ public class Main : Game
 
         BeeboImGuiRenderer.Update();
 
-        TotalFrames++;
+        Time++;
     }
 
     protected override bool BeginDraw()
     {
         Scene?.PreDraw();
+
+        RendererList.Shared.PreDraw();
+
         return true;
     }
 
@@ -266,31 +270,51 @@ public class Main : Game
             ScissorTestEnable = true,
         };
 
+        // game world
         Renderer.BeginDraw(samplerState: SamplerState.PointWrap, transformMatrix: camera.Transform, rasterizerState: rasterizerState);
 
-        Scene?.CollisionSystem?.Draw();
+        RendererList.Shared.BeginDraw(gameTime);
 
         Scene?.Draw();
+
+        RendererList.Shared.Draw(gameTime);
+
         Scene?.PostDraw();
+
+        RendererList.Shared.PostDraw(gameTime);
+
+        if(JellyBackend.DebugEnabled)
+            RendererList.Shared.DrawDebug(gameTime);
 
         Renderer.EndDraw();
 
         GraphicsDevice.ScissorRectangle = rect;
 
+        // UI
         Renderer.BeginDrawUI();
 
         Scene?.DrawUI();
+
+        RendererList.Shared.DrawUI(gameTime);
 
         BeeboImGuiRenderer.DrawUI();
 
         Chat.DrawUI();
 
+        if(JellyBackend.DebugEnabled)
+            RendererList.Shared.DrawDebugUI(gameTime);
+
         Renderer.EndDrawUI();
-        Renderer.FinalizeDraw();
 
         base.Draw(gameTime);
+    }
 
+    protected override void EndDraw()
+    {
+        Renderer.FinalizeDraw();
         BeeboImGuiRenderer.PostDraw();
+
+        base.EndDraw();
     }
 
     private void SceneChanged(Scene oldScene, Scene newScene)
@@ -314,6 +338,17 @@ public class Main : Game
                 }
             }
         }
+
+        // convenient mods hook
+        RendererList.Shared.Clear();
+        RebuildRendererList(newScene);
+
+        RendererList.Shared.SceneBegin(newScene);
+    }
+
+    internal static void RebuildRendererList(Scene scene)
+    {
+        RendererList.Shared.Add(new TileRenderer(scene));
     }
 
     private void Game_Exiting(object sender, EventArgs e)

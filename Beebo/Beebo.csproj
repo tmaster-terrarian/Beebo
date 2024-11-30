@@ -31,6 +31,7 @@
     <PackageReference Include="ImGui.NET" Version="1.90.1.1" />
     <PackageReference Include="Brigadier.NET" Version="1.2.13" />
     <PackageReference Include="Semver" Version="3.0.0" />
+    <!-- <PackageReference Include="YamlDotNet" Version="16.2.0" /> -->
   </ItemGroup>
 
   <ItemGroup>

@@ -32,6 +32,7 @@ public static class RegistryManager
     public static SceneRegistry SceneRegistry { get; } = new();
     public static AudioRegistry AudioRegistry { get; } = new();
     public static CommandRegistry CommandRegistry { get; } = new();
+    public static TilesetRegistry TilesetRegistry { get; } = new();
 
     public static void Initialize()
     {
@@ -53,6 +54,7 @@ public static class RegistryManager
         Registries.Add(SceneRegistry);
         Registries.Add(AudioRegistry);
         Registries.Add(CommandRegistry);
+        Registries.Add(TilesetRegistry);
 
         ModLoader.DoRegistriesInit();
     }

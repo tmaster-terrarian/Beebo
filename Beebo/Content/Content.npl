@@ -63,8 +63,13 @@
 			"recursive": "True",
 			"action": "copy"
 		},
-		"data": {
+		"dataJson": {
 			"path": "Data/*.json",
+			"recursive": "True",
+			"action": "copy"
+		},
+		"dataYaml": {
+			"path": "Data/*.yml",
 			"recursive": "True",
 			"action": "copy"
 		},

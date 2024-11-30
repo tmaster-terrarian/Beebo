@@ -12,6 +12,8 @@ public static class FileLocations
 
     public static string ContentPath => Path.Combine(ProgramPath, "Content");
 
+    public static string DataPath => Path.Combine(ContentPath, "Data");
+
     public static string ModsPath => Path.Combine(ProgramPath, "mods");
 
     public static string SaveDataPath
