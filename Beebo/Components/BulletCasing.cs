@@ -61,7 +61,7 @@ public class BulletCasing : Actor
             else
             {
                 velocity.Y = 0;
-                velocity.X = MathUtil.Approach(velocity.X, 0, 0.1f * Time.DeltaTime * 60);
+                velocity.X = MathUtil.Approach(velocity.X, 0, 0.1f);
 
                 var c = Scene.CollisionSystem.SolidPlace(BottomEdge.Shift(0, 1));
                 if(c != null)
@@ -69,9 +69,9 @@ public class BulletCasing : Actor
                     velocity = c.velocity;
                 }
 
-                Angle = MathUtil.Approach(Angle, finalAngle, MathHelper.ToRadians(20f * Time.DeltaTime * 60));
+                Angle = MathUtil.Approach(Angle, finalAngle, MathHelper.ToRadians(20f));
 
-                alpha = MathUtil.Approach(alpha, 0, 0.2f * Time.DeltaTime * 60);
+                alpha = MathUtil.Approach(alpha, 0, 0.2f);
 
                 if(alpha == 0)
                 {
@@ -82,10 +82,10 @@ public class BulletCasing : Actor
             }
         }
 
-        velocity.Y = MathUtil.Approach(velocity.Y, 20, gravity * Time.DeltaTime * 60);
-        velocity.X = MathUtil.Approach(velocity.X, 0, 0.01f * Time.DeltaTime * 60);
+        velocity.Y = MathUtil.Approach(velocity.Y, 20, gravity);
+        velocity.X = MathUtil.Approach(velocity.X, 0, 0.01f);
 
-        rotationSpeed = MathUtil.Approach(rotationSpeed, rotationSpeedMax, rotationAccel * Time.DeltaTime * 60);
+        rotationSpeed = MathUtil.Approach(rotationSpeed, rotationSpeedMax, rotationAccel);
 
         MoveX(velocity.X, () => {
             rotationSpeed = 0;
@@ -108,13 +108,13 @@ public class BulletCasing : Actor
             }
         });
 
-        Angle -= rotationSpeed * Time.DeltaTime * 60 * Facing;
+        Angle -= rotationSpeed * Facing;
     }
 
     public override void Draw()
     {
         Renderer.SpriteBatch.Draw(
-            ContentLoader.LoadTexture("Images/Entities/casing"),
+            texture,
             Center.ToVector2(),
             null,
             Color.White * alpha,
@@ -123,5 +123,28 @@ public class BulletCasing : Actor
             new Vector2(1, ImageFacing),
             SpriteEffects.None, 0
         );
+    }
+
+    bool removed;
+
+    public override void Removed(Entity entity)
+    {
+        Cleanup();
+    }
+
+    public override void EntityRemoved(Scene scene)
+    {
+        Cleanup();
+    }
+
+    private void Cleanup()
+    {
+        if(removed) return;
+
+        texture = null;
+
+        Visible = false;
+
+        removed = true;
     }
 }

@@ -34,34 +34,6 @@ public static class Extensions
         return collisionSystem.GetTile(new(x, y));
     }
 
-    public static void Draw(this CollisionSystem collisionSystem)
-    {
-        for(int x = 0; x < collisionSystem.Width; x++)
-        {
-            for(int y = 0; y < collisionSystem.Height; y++)
-            {
-                int tile = collisionSystem.GetTile(x, y);
-                if(tile == 0)
-                    continue;
-
-                var tex = ContentLoader.LoadTexture("Images/Level/wall");
-                if(tex == null)
-                    continue;
-
-                Renderer.SpriteBatch.Draw(
-                    tex,
-                    new Rectangle(
-                        x * CollisionSystem.TileSize,
-                        y * CollisionSystem.TileSize,
-                        CollisionSystem.TileSize,
-                        CollisionSystem.TileSize
-                    ),
-                    Color.White
-                );
-            }
-        }
-    }
-
     public static object GetDefault(this Type type)
     {
         if(type.IsValueType)

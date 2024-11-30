@@ -21,6 +21,8 @@ public class BombProjectile : Projectile
 
     private bool exploded;
 
+    private Texture2D texture;
+
     public override void OnCreated()
     {
         Width = 4;
@@ -30,11 +32,13 @@ public class BombProjectile : Projectile
         EffectedByGravity = true;
 
         throwSound = AudioRegistry.GetDefStatic("bomb_throw").Play();
+
+        texture = ContentLoader.LoadTexture("Images/Entities/bomb");
     }
 
     public override void Update()
     {
-        frame += 0.125f * Time.DeltaTime * 60;
+        frame += 0.125f;
 
         foreach(var entity in Scene.Entities.FindAllWithComponent<BulletProjectile>())
         {
@@ -63,7 +67,6 @@ public class BombProjectile : Projectile
         while(frame > 2)
             frame -= 2;
 
-        var texture = ContentLoader.LoadTexture("Images/Entities/bomb");
         Rectangle drawFrame = GraphicsUtil.GetFrameInStrip(texture, frame, 2);
 
         Renderer.SpriteBatch.Draw(

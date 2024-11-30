@@ -51,7 +51,7 @@ public class Projectile : Actor
 
         if(EffectedByGravity && !OnGround)
         {
-            velocity.Y = MathUtil.Approach(velocity.Y, 20, 0.2f * GravityScale * (Time.DeltaTime * 60f));
+            velocity.Y = MathUtil.Approach(velocity.Y, 20, 0.2f * GravityScale);
         }
 
         MoveX(velocity.X, HandleCollisionX);

@@ -475,7 +475,7 @@ public class Player : Actor
             {
                 velocity.X = -velocity.X * 0.9f;
             }
-            else for(int j = 0; j < MathUtil.RoundToInt(MathHelper.Max(Time.DeltaTime * 60, 1)); j++)
+            else /*for(int j = 0; j < MathUtil.RoundToInt(MathHelper.Max(Time.DeltaTime * 60, 1)); j++)*/
             {
                 if(inputDir != 0 && !CheckColliding(Hitbox.Shift(inputDir, -2)))
                 {
@@ -501,7 +501,7 @@ public class Player : Actor
                     //     }
                     // }
                     velocity.X = 0;
-                    break;
+                    // break;
                 }
             }
         });

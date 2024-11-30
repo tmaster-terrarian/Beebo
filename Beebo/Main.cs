@@ -333,16 +333,13 @@ public class Main : Game
         }
         else
         {
+            var sceneDef = SceneRegistry.GetDefStatic(newScene.Name);
+
             Player.Enabled = true;
             Player.GetComponent<Player>().State = PlayerState.Normal;
-            switch(newScene.Name)
-            {
-                case "Title":
-                {
-                    newScene?.Entities.Add(Player);
-                    break;
-                }
-            }
+
+            if(sceneDef.CreatePlayer ?? false)
+                newScene.Entities.Add(Player);
         }
 
         // convenient mods hook

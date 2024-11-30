@@ -68,7 +68,10 @@ public class TilesetRegistry : Registry<TilesetDef>
 
     public static string GetNameFromID(int id)
     {
-        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(id, ids.Count, nameof(id));
+        // ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(id, ids.Count, nameof(id));
+        if(id >= ids.Count)
+            return ids[0];
+
         return ids[id];
     }
 }

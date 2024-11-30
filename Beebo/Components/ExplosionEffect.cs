@@ -58,7 +58,7 @@ public class ExplosionEffect : Component
             }
         }
 
-        frameRemainder += Time.DeltaTime * 60;
+        frameRemainder += 1;
         int f = MathUtil.RoundToInt(frameRemainder);
         frameRemainder -= f;
 

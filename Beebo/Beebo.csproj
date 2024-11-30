@@ -26,7 +26,7 @@
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.2.1105" />
     <PackageReference Include="MonoGame.Content.Builder.Task" Version="3.8.2.1105" />
-    <PackageReference Include="JellyEngine" Version="0.1.0-beta.11" />
+    <!-- <PackageReference Include="JellyEngine" Version="0.1.0-beta.11" /> -->
     <PackageReference Include="Nopipeline.Task" Version="2.2.0" />
     <PackageReference Include="ImGui.NET" Version="1.90.1.1" />
     <PackageReference Include="Brigadier.NET" Version="1.2.13" />
@@ -50,6 +50,10 @@
     <Reference Include="Monogame.ImGuiNet, Version=0.1.0">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>Monogame.ImGuiNet.dll</HintPath>
+    </Reference>
+    <Reference Include="JellyEngine">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>../../Jelly/Jelly/bin/Debug/net8.0/Jelly.dll</HintPath>
     </Reference>
   </ItemGroup>
 

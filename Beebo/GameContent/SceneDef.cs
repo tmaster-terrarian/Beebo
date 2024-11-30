@@ -17,6 +17,8 @@ public class SceneDef : RegistryEntry
     public int? Width { get; set; }
     public int? Height { get; set; }
 
+    public bool? CreatePlayer { get; set; }
+
     public Scene Build()
     {
         var scene = new Scene {
