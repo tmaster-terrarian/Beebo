@@ -222,6 +222,12 @@ public class Main : Game
 
                         Y = p.Center.Y + (Input.GetDown(Keys.LeftControl) ? 0 : -12 - p.Lookup * 24 + p.velocity.Y)
                     };
+
+                    CameraTarget = Vector2.Clamp(
+                        CameraTarget,
+                        Renderer.ScreenSize.ToVector2() / 2f + new Vector2(4),
+                        new Vector2(Scene.Width, Scene.Height) - (Renderer.ScreenSize.ToVector2() / 2f) - new Vector2(4)
+                    );
                 }
 
                 Scene?.PreUpdate();

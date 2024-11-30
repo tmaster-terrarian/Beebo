@@ -94,9 +94,6 @@ public class TileRenderer(Scene scene) : ExtendedRenderer
 
         Renderer.SpriteBatch.End();
         Renderer.GraphicsDevice.SetRenderTarget(null);
-
-        Main.Logger.LogInfo(JsonSerializer.Serialize(TilesetRegistry.GetDefStatic(0), RegistryManager.SerializerOptions));
-        Main.Logger.LogInfo(JsonSerializer.Serialize(TilesetRegistry.GetDefStatic(1), RegistryManager.SerializerOptions));
     }
 
     public override void BeginDraw(GameTime gameTime)
@@ -164,7 +161,7 @@ public class TileRenderer(Scene scene) : ExtendedRenderer
             match = check(rule);
             if(match)
             {
-                Main.Logger.LogInfo($"match found at {x}, {y}, id:{id}, value:{tile}, mask:{shapeMask}, shape:\n{string.Join('\n',rule.Pattern)}");
+                // Main.Logger.LogInfo($"match found at {x}, {y}, id:{id}, value:{tile}, mask:{shapeMask}, shape:\n{string.Join('\n',rule.Pattern)}");
                 srcRect.X = rule.U * 16;
                 srcRect.Y = rule.V * 16;
                 break;
