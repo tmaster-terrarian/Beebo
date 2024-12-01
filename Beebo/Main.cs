@@ -107,6 +107,8 @@ public class Main : Game
 
         camera = new Camera();
 
+        GlobalRandom.Initialize();
+
         if(Program.UseSteamworks)
         {
             try

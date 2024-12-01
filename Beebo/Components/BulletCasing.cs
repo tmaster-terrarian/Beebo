@@ -34,7 +34,7 @@ public class BulletCasing : Actor
 
     public override void OnCreated()
     {
-        bouncesMax = Random.Shared.Next(3);
+        bouncesMax = GlobalRandom.Vfx.Next(3);
         texture = ContentLoader.LoadTexture("Images/Entities/casing");
 
         Width = 2;
@@ -54,9 +54,9 @@ public class BulletCasing : Actor
             if(!CheckColliding(BottomEdge.Shift(0, 1)))
             {
                 done = false;
-                alpha = Random.Shared.Next(5, 9);
-                Facing = Random.Shared.NextSingle() >= 0.5f ? -1 : 1;
-                bouncesMax = Random.Shared.Next(3); 
+                alpha = GlobalRandom.Vfx.Next(5, 9);
+                Facing = GlobalRandom.Vfx.NextSingle() >= 0.5f ? -1 : 1;
+                bouncesMax = GlobalRandom.Vfx.Next(3); 
             }
             else
             {

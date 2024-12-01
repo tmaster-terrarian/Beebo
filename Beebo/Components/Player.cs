@@ -736,11 +736,13 @@ public class Player : Actor
             //     damage = obj_player.damage
             // }
 
+            float randSpread = MathHelper.ToRadians((GlobalRandom.PlayerAttacks.NextSingle() * 6) - 3);
+
             Scene.Entities.Add(bullet = new Entity(new(Entity.X + x * VisualFacing + (int)(12 * MathF.Cos(gunAngle)), Entity.Y + y - 1 + (int)(12 * MathF.Sin(gunAngle)))) {
                     Components = {
                         new BulletProjectile {
-                            Direction = gunAngle,
-                            velocity = new(12 * MathF.Cos(gunAngle), 12 * MathF.Sin(gunAngle)),
+                            Direction = gunAngle + randSpread,
+                            velocity = new(12 * MathF.Cos(gunAngle + randSpread), 12 * MathF.Sin(gunAngle + randSpread)),
                             Owner = Entity.EntityID,
                             Damage = 1,
                             Team = Team.Player
@@ -770,8 +772,8 @@ public class Player : Actor
                         ImageFacing = facing,
                         Facing = facing,
                         velocity = {
-                            X = -facing * (Random.Shared.NextSingle() * 0.5f + 1),
-                            Y = -1 + (Random.Shared.NextSingle() * 0.3f - 0.2f)
+                            X = -facing * (GlobalRandom.Vfx.NextSingle() * 0.5f + 1),
+                            Y = -1 + (GlobalRandom.Vfx.NextSingle() * 0.3f - 0.2f)
                         }
                     }
                 }
