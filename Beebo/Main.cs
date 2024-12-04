@@ -61,7 +61,7 @@ public class Main : Game
         public static bool LogToChat { get; set; }
     }
 
-    public Main() : base()
+    public Main()
     {
         if(Instance is not null)
             throw new InvalidOperationException("You can't start the game more than once 4head");
@@ -98,7 +98,10 @@ public class Main : Game
     {
         Logger.LogInfo("Entering main loop");
 
-        Renderer.PixelScale = GraphicsDevice.Adapter.CurrentDisplayMode.Width / Renderer.ScreenSize.X;
+        Renderer.PixelScale = MathHelper.Min(
+            GraphicsDevice.Adapter.CurrentDisplayMode.Width / Renderer.ScreenSize.X,
+            GraphicsDevice.Adapter.CurrentDisplayMode.Height / Renderer.ScreenSize.Y
+        );
 
         _graphics.PreferredBackBufferWidth = Renderer.ScreenSize.X * Renderer.PixelScale;
         _graphics.PreferredBackBufferHeight = Renderer.ScreenSize.Y * Renderer.PixelScale;
@@ -115,7 +118,7 @@ public class Main : Game
             {
                 if(!steamFailed)
                 {
-                    SteamManager.Init(false);
+                    SteamManager.Init();
                 }
             }
             catch(Exception e)
@@ -299,7 +302,7 @@ public class Main : Game
         GraphicsDevice.ScissorRectangle = rect;
 
         // UI
-        Renderer.BeginDrawUI();
+        Renderer.BeginDrawUI(new Point(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight));
 
         Scene?.DrawUI();
 

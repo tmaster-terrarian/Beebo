@@ -16,7 +16,7 @@ public static class SteamManager
 
     public static bool IsSteamRunning { get; internal set; } = false;
 
-    public static bool Init(bool server = false)
+    public static bool Init()
     {
         try
         {

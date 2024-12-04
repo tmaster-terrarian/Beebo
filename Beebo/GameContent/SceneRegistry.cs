@@ -13,7 +13,7 @@ public class SceneRegistry : Registry<SceneDef>
 {
     public override void Init()
     {
-        string path = Path.Combine(FileLocations.DataPath, "levels");
+        string path = Path.Combine(FileLocations.DataPath, "scenes");
         foreach(var file in Directory.EnumerateFiles(path, "*.json", SearchOption.TopDirectoryOnly))
         {
             string fileName = Path.GetFileNameWithoutExtension(file);
@@ -110,6 +110,6 @@ public class SceneRegistry : Registry<SceneDef>
 
     public static SceneDef? LoadFromFile(string path)
     {
-        return SceneDef.Deserialize(File.ReadAllText(Path.Combine(FileLocations.DataPath, "levels", $"{path}.json")));
+        return SceneDef.Deserialize(File.ReadAllText(Path.Combine(FileLocations.DataPath, "scenes", $"{path}.json")));
     }
 }
